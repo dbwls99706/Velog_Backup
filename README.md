@@ -1,189 +1,132 @@
-# 📦 Velog Backup - SaaS Platform
+# 📚 Velog Backup
 
-Velog 사용자가 자신의 블로그 글을 자동으로 백업하고 Google Drive 또는 GitHub 저장소로 동기화하는 웹 서비스
+> Velog 블로그 포스트를 Google Drive에 자동으로 백업하는 무료 웹 서비스
 
-## 🎯 주요 기능
+[![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new)
 
-- 🔐 사용자 인증 시스템 (JWT 기반)
-- 📝 Velog 포스트 자동 크롤링
-- 📄 Markdown 변환 및 백업
-- ☁️ Google Drive 자동 업로드
-- 🐙 GitHub Repository 자동 커밋
-- ⏰ 정기 자동 백업 (Celery)
-- 📊 웹 대시보드 (백업 현황, 로그 확인)
+## ✨ 주요 기능
 
-## 🏗️ 기술 스택
+- 🔐 **안전한 인증**: Google 계정으로 간편 로그인
+- 📝 **자동 백업**: Velog 포스트를 Markdown 형식으로 자동 백업
+- ☁️ **Google Drive 저장**: 본인의 Google Drive에 안전하게 보관
+- 🔄 **실시간 동기화**: 포스트 수정 시 자동으로 업데이트
+- 📊 **백업 현황 확인**: 대시보드에서 백업 통계 확인
+- 🆓 **완전 무료**: 모든 기능 무료 제공
 
-### Backend
-- **FastAPI** - Python 3.11+
-- **PostgreSQL** - 데이터베이스
-- **SQLAlchemy** - ORM
-- **Celery + Redis** - 백그라운드 작업
-- **OAuth 2.0** - Google Drive, GitHub 연동
+## 🚀 사용 방법
+
+### 1. 회원가입
+1. [velog-backup.vercel.app](https://velog-backup.vercel.app) 접속
+2. "Google로 시작하기" 클릭
+3. Google 계정으로 로그인
+
+### 2. Velog 계정 연동
+1. 대시보드에서 "Velog 연동" 클릭
+2. Velog 사용자명 입력 (예: `@username`)
+3. "확인" 버튼 클릭
+
+### 3. Google Drive 연동
+1. "Google Drive 연동" 버튼 클릭
+2. Google Drive 권한 승인
+3. 자동으로 "Velog Backup" 폴더 생성됨
+
+### 4. 백업 시작
+- **자동 백업**: 매일 자동으로 백업됨
+- **수동 백업**: "지금 백업하기" 버튼으로 즉시 백업
+
+## 📂 백업된 파일 구조
+
+```
+Google Drive/
+└── Velog Backup/
+    ├── 2024-01-15_first-post.md
+    ├── 2024-01-20_react-hooks.md
+    └── 2024-02-01_typescript-tips.md
+```
+
+각 Markdown 파일에는 다음 정보가 포함됩니다:
+- 제목, 작성일, 태그
+- 전체 포스트 내용
+- 썸네일 이미지 URL
+
+## 🔒 보안 및 프라이버시
+
+- ✅ Google OAuth 2.0 공식 인증 사용
+- ✅ 비밀번호 저장 안 함 (Google 계정만 사용)
+- ✅ Google Drive 접근 권한: 앱이 생성한 파일만 접근
+- ✅ 모든 데이터는 HTTPS로 암호화 전송
+- ✅ 언제든지 연동 해제 가능
+
+## 💡 자주 묻는 질문 (FAQ)
+
+<details>
+<summary><strong>Q: 비용이 드나요?</strong></summary>
+A: 완전 무료입니다! 모든 기능을 무료로 사용할 수 있습니다.
+</details>
+
+<details>
+<summary><strong>Q: Google Drive 용량을 얼마나 사용하나요?</strong></summary>
+A: Markdown 텍스트 파일은 매우 작습니다. 100개 포스트도 1MB 미만입니다.
+</details>
+
+<details>
+<summary><strong>Q: 이미지도 백업되나요?</strong></summary>
+A: 현재는 이미지 URL만 저장됩니다. 이미지 파일 백업은 곧 추가될 예정입니다.
+</details>
+
+<details>
+<summary><strong>Q: 백업 주기를 변경할 수 있나요?</strong></summary>
+A: 기본은 하루 1회이며, 설정에서 변경 가능합니다.
+</details>
+
+<details>
+<summary><strong>Q: 개인정보가 안전한가요?</strong></summary>
+A: 네! Google OAuth만 사용하며, 비밀번호는 저장하지 않습니다. Google Drive 접근도 최소 권한만 요청합니다.
+</details>
+
+<details>
+<summary><strong>Q: Velog 포스트가 삭제되면 백업도 삭제되나요?</strong></summary>
+A: 아니요. Google Drive의 백업 파일은 그대로 유지됩니다.
+</details>
+
+## 🛠️ 기술 스택
 
 ### Frontend
-- **Next.js 14** - React Framework (App Router)
-- **TypeScript** - 타입 안전성
+- **Next.js 14** - React 프레임워크
 - **Tailwind CSS** - 스타일링
-- **Zustand** - 상태 관리
+- **Vercel** - 무료 호스팅 및 도메인
 
-### Infrastructure
-- **Docker Compose** - 로컬 개발 환경
-- **Redis** - 캐시 및 작업 큐
-- **Nginx** - 리버스 프록시 (프로덕션)
+### Backend
+- **FastAPI** - Python 웹 프레임워크
+- **Railway** - 무료 서버 호스팅
+- **Supabase** - 무료 PostgreSQL 데이터베이스
+- **Upstash Redis** - 무료 Redis (작업 큐)
 
-## 📁 프로젝트 구조
+## 🌟 로드맵
 
-```
-.
-├── backend/                 # FastAPI 백엔드
-│   ├── app/
-│   │   ├── api/            # API 라우터
-│   │   ├── core/           # 설정, 보안
-│   │   ├── models/         # DB 모델
-│   │   ├── schemas/        # Pydantic 스키마
-│   │   ├── services/       # 비즈니스 로직
-│   │   └── tasks/          # Celery 태스크
-│   ├── alembic/            # DB 마이그레이션
-│   ├── requirements.txt
-│   └── Dockerfile
-│
-├── frontend/               # Next.js 프론트엔드
-│   ├── src/
-│   │   ├── app/           # App Router 페이지
-│   │   ├── components/    # 재사용 컴포넌트
-│   │   ├── lib/           # 유틸리티
-│   │   └── store/         # 상태 관리
-│   ├── package.json
-│   └── Dockerfile
-│
-├── docker-compose.yml      # 개발 환경 설정
-└── README.md
-```
+- [x] Google 로그인
+- [x] Velog 포스트 크롤링
+- [x] Google Drive 백업
+- [x] 자동 백업 스케줄러
+- [ ] GitHub 백업 추가
+- [ ] 이미지 파일 백업
+- [ ] 이메일 알림
+- [ ] 백업 히스토리 관리
 
-## 🚀 시작하기
+## 🤝 기여하기
 
-### 사전 요구사항
+이슈와 PR은 언제나 환영합니다!
 
-- Docker & Docker Compose
-- Node.js 18+ (로컬 개발 시)
-- Python 3.11+ (로컬 개발 시)
+## 📄 라이선스
 
-### 개발 환경 실행
+MIT License - 자유롭게 사용하세요!
 
-```bash
-# 전체 서비스 실행
-docker-compose up -d
+## 📧 문의
 
-# 로그 확인
-docker-compose logs -f
+- 이슈: [GitHub Issues](https://github.com/dbwls99706/Velog_Backup/issues)
+- 이메일: support@velog-backup.com
 
-# 서비스 중지
-docker-compose down
-```
+---
 
-### 접속 정보
-
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
-- **PostgreSQL**: localhost:5432
-- **Redis**: localhost:6379
-
-## 🔧 개발 모드
-
-### Backend 로컬 실행
-
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-### Frontend 로컬 실행
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### Celery Worker 실행
-
-```bash
-cd backend
-celery -A app.tasks.celery_app worker --loglevel=info
-```
-
-## 📊 DB 마이그레이션
-
-```bash
-cd backend
-
-# 마이그레이션 생성
-alembic revision --autogenerate -m "description"
-
-# 마이그레이션 적용
-alembic upgrade head
-```
-
-## 🔑 환경 변수 설정
-
-각 서비스의 `.env` 파일을 생성하세요:
-
-### backend/.env
-```env
-DATABASE_URL=postgresql://user:password@localhost:5432/velog_backup
-SECRET_KEY=your-secret-key-here
-REDIS_URL=redis://localhost:6379/0
-
-# Google OAuth
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-
-# GitHub OAuth
-GITHUB_CLIENT_ID=your-github-client-id
-GITHUB_CLIENT_SECRET=your-github-client-secret
-```
-
-### frontend/.env.local
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-## 🗺️ 개발 로드맵
-
-### ✅ Phase 1 - MVP (현재)
-- [x] 프로젝트 구조 설정
-- [ ] 사용자 인증 시스템
-- [ ] Velog 크롤러
-- [ ] Markdown 변환
-- [ ] Google Drive 연동
-- [ ] 기본 대시보드 UI
-
-### 📋 Phase 2 - 자동화
-- [ ] 백업 스케줄러
-- [ ] 업데이트 감지 (hash 비교)
-- [ ] GitHub 연동
-- [ ] 백업 로그 UI
-
-### 🚀 Phase 3 - 확장
-- [ ] 이미지 백업
-- [ ] 알림 서비스
-- [ ] 유료 플랜 (Stripe)
-- [ ] 성능 최적화
-
-### 🌐 Phase 4 - 런칭
-- [ ] Landing page
-- [ ] SEO 최적화
-- [ ] 프로덕션 배포
-
-## 📝 라이선스
-
-MIT License
-
-## 👥 기여
-
-이슈와 PR을 환영합니다!
+Made with ❤️ for Velog users

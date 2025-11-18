@@ -1,22 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api import auth, integrations, backup
-from app.core.database import Base, engine
+from app.core.database import init_db
+from app.api import auth, user, backup, google
 
-# 데이터베이스 테이블 생성 (개발용, 프로덕션에서는 Alembic 사용)
-# Base.metadata.create_all(bind=engine)
-
+# FastAPI 앱 생성
 app = FastAPI(
-    title=settings.APP_NAME,
-    debug=settings.DEBUG,
-    version="1.0.0"
+    title="Velog Backup API",
+    version="1.0.0",
+    docs_url="/docs" if settings.ENVIRONMENT != "production" else None,
+    redoc_url=None
 )
 
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000"],
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -24,17 +23,25 @@ app.add_middleware(
 
 # API 라우터 등록
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
-app.include_router(integrations.router, prefix=f"{settings.API_V1_STR}/integrations", tags=["integrations"])
+app.include_router(user.router, prefix=f"{settings.API_V1_STR}/user", tags=["user"])
 app.include_router(backup.router, prefix=f"{settings.API_V1_STR}/backup", tags=["backup"])
+app.include_router(google.router, prefix=f"{settings.API_V1_STR}/google", tags=["google"])
+
+
+@app.on_event("startup")
+async def startup_event():
+    """앱 시작 시 실행"""
+    # 데이터베이스 초기화
+    init_db()
 
 
 @app.get("/")
 def root():
     """루트 엔드포인트"""
     return {
-        "message": "Velog Backup API",
+        "name": "Velog Backup API",
         "version": "1.0.0",
-        "docs": "/docs"
+        "status": "running"
     }
 
 

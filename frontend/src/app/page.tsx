@@ -1,119 +1,102 @@
-'use client';
+'use client'
 
-import Link from 'next/link';
-import { BookOpen, Cloud, Github, Zap, Shield, Clock } from 'lucide-react';
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { GoogleLogin, CredentialResponse } from '@react-oauth/google'
+import { BookOpen, Cloud, Shield, Zap } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { authAPI } from '@/lib/api'
 
 export default function HomePage() {
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      router.push('/dashboard')
+    } else {
+      setIsLoading(false)
+    }
+  }, [router])
+
+  const handleGoogleLogin = async (response: CredentialResponse) => {
+    try {
+      if (!response.credential) {
+        toast.error('로그인에 실패했습니다')
+        return
+      }
+
+      const result = await authAPI.googleLogin(response.credential)
+      localStorage.setItem('access_token', result.data.access_token)
+      toast.success('로그인 성공!')
+      router.push('/dashboard')
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || '로그인에 실패했습니다')
+    }
+  }
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+    </div>
+  }
+
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
+      {/* Hero */}
       <header className="bg-gradient-to-r from-primary-600 to-primary-800 text-white">
-        <nav className="container mx-auto px-4 py-6 flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <BookOpen size={32} />
-            <span className="text-2xl font-bold">Velog Backup</span>
+        <div className="container mx-auto px-4 py-20">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="flex justify-center mb-6">
+              <BookOpen size={64} />
+            </div>
+            <h1 className="text-5xl font-bold mb-6">Velog Backup</h1>
+            <p className="text-xl mb-8 text-primary-100">
+              Velog 블로그 포스트를 Google Drive에 자동으로 백업하세요
+            </p>
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleLogin}
+                onError={() => toast.error('로그인에 실패했습니다')}
+                useOneTap
+                theme="filled_blue"
+                size="large"
+                text="continue_with"
+                locale="ko"
+              />
+            </div>
           </div>
-          <div className="space-x-4">
-            <Link href="/login" className="btn btn-secondary">
-              로그인
-            </Link>
-            <Link href="/register" className="btn bg-white text-primary-600 hover:bg-gray-100">
-              회원가입
-            </Link>
-          </div>
-        </nav>
-
-        <div className="container mx-auto px-4 py-20 text-center">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            Velog 포스트를<br />안전하게 백업하세요
-          </h1>
-          <p className="text-xl md:text-2xl mb-8 text-primary-100">
-            Google Drive와 GitHub에 자동으로 백업되는 블로그 관리 서비스
-          </p>
-          <Link href="/register" className="btn bg-white text-primary-600 hover:bg-gray-100 text-lg px-8 py-3">
-            무료로 시작하기
-          </Link>
         </div>
       </header>
 
-      {/* Features Section */}
+      {/* Features */}
       <section className="container mx-auto px-4 py-20">
-        <h2 className="text-4xl font-bold text-center mb-16">주요 기능</h2>
-        <div className="grid md:grid-cols-3 gap-8">
+        <h2 className="text-3xl font-bold text-center mb-12">주요 기능</h2>
+        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           <div className="card text-center">
-            <div className="flex justify-center mb-4">
-              <Zap className="text-primary-600" size={48} />
-            </div>
-            <h3 className="text-2xl font-bold mb-4">자동 백업</h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              하루 1회 자동으로 Velog 포스트를 백업합니다. 새 글과 수정된 글을 자동 감지합니다.
+            <Cloud className="mx-auto mb-4 text-primary-600" size={48} />
+            <h3 className="text-xl font-bold mb-2">자동 백업</h3>
+            <p className="text-gray-600">
+              Velog 포스트를 Markdown 형식으로 자동 백업합니다
             </p>
           </div>
 
           <div className="card text-center">
-            <div className="flex justify-center mb-4">
-              <Cloud className="text-primary-600" size={48} />
-            </div>
-            <h3 className="text-2xl font-bold mb-4">Google Drive 연동</h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              모든 포스트를 Markdown 형식으로 Google Drive에 안전하게 저장합니다.
+            <Shield className="mx-auto mb-4 text-primary-600" size={48} />
+            <h3 className="text-xl font-bold mb-2">안전한 보관</h3>
+            <p className="text-gray-600">
+              Google Drive에 안전하게 저장됩니다
             </p>
           </div>
 
           <div className="card text-center">
-            <div className="flex justify-center mb-4">
-              <Github className="text-primary-600" size={48} />
-            </div>
-            <h3 className="text-2xl font-bold mb-4">GitHub 저장소</h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              GitHub 저장소에 자동으로 커밋하여 버전 관리와 백업을 동시에 수행합니다.
+            <Zap className="mx-auto mb-4 text-primary-600" size={48} />
+            <h3 className="text-xl font-bold mb-2">완전 무료</h3>
+            <p className="text-gray-600">
+              모든 기능을 무료로 사용할 수 있습니다
             </p>
           </div>
-
-          <div className="card text-center">
-            <div className="flex justify-center mb-4">
-              <Shield className="text-primary-600" size={48} />
-            </div>
-            <h3 className="text-2xl font-bold mb-4">안전한 보안</h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              OAuth 2.0 기반의 안전한 인증으로 개인정보를 보호합니다.
-            </p>
-          </div>
-
-          <div className="card text-center">
-            <div className="flex justify-center mb-4">
-              <Clock className="text-primary-600" size={48} />
-            </div>
-            <h3 className="text-2xl font-bold mb-4">실시간 모니터링</h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              대시보드에서 백업 현황과 로그를 실시간으로 확인할 수 있습니다.
-            </p>
-          </div>
-
-          <div className="card text-center">
-            <div className="flex justify-center mb-4">
-              <BookOpen className="text-primary-600" size={48} />
-            </div>
-            <h3 className="text-2xl font-bold mb-4">Markdown 변환</h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              Velog 포스트를 표준 Markdown 형식으로 변환하여 어디서든 사용 가능합니다.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="bg-primary-600 text-white py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl font-bold mb-6">
-            지금 바로 시작하세요
-          </h2>
-          <p className="text-xl mb-8 text-primary-100">
-            무료로 가입하고 소중한 블로그 포스트를 안전하게 보호하세요
-          </p>
-          <Link href="/register" className="btn bg-white text-primary-600 hover:bg-gray-100 text-lg px-8 py-3">
-            무료 회원가입
-          </Link>
         </div>
       </section>
 
@@ -124,5 +107,5 @@ export default function HomePage() {
         </div>
       </footer>
     </div>
-  );
+  )
 }
