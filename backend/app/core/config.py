@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     # Database (Supabase PostgreSQL)
     DATABASE_URL: str
 
-    # Redis (Upstash)
-    REDIS_URL: str
+    # Redis (Optional - Upstash)
+    REDIS_URL: Optional[str] = None
 
     # Security
     SECRET_KEY: str
@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
 
+    # CORS
+    FRONTEND_URL: str = "https://velog-backup.vercel.app"
+    CORS_ORIGINS: str = ""
+
     @property
     def GOOGLE_REDIRECT_URI(self) -> str:
         """동적으로 리다이렉트 URI 생성"""
@@ -31,13 +35,12 @@ class Settings(BaseSettings):
             return "http://localhost:3000/api/auth/google/callback"
         return f"{self.FRONTEND_URL}/api/auth/google/callback"
 
-    # CORS
-    FRONTEND_URL: str
-
     @property
     def ALLOWED_ORIGINS(self) -> list:
         """CORS 허용 도메인"""
         origins = [self.FRONTEND_URL]
+        if self.CORS_ORIGINS:
+            origins.extend([o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()])
         if self.ENVIRONMENT == "development":
             origins.extend([
                 "http://localhost:3000",
@@ -45,17 +48,9 @@ class Settings(BaseSettings):
             ])
         return origins
 
-    # Celery
+    # Celery (Optional)
     CELERY_BROKER_URL: Optional[str] = None
     CELERY_RESULT_BACKEND: Optional[str] = None
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Celery URL을 Redis URL로 기본 설정
-        if not self.CELERY_BROKER_URL:
-            self.CELERY_BROKER_URL = self.REDIS_URL
-        if not self.CELERY_RESULT_BACKEND:
-            self.CELERY_RESULT_BACKEND = self.REDIS_URL
 
     class Config:
         env_file = ".env"
@@ -70,7 +65,3 @@ settings = Settings()
 if settings.ENVIRONMENT == "production":
     if len(settings.SECRET_KEY) < 32:
         raise ValueError("SECRET_KEY must be at least 32 characters long in production")
-    if not settings.DATABASE_URL.startswith("postgresql"):
-        raise ValueError("Invalid DATABASE_URL format")
-    if not settings.REDIS_URL.startswith("redis"):
-        raise ValueError("Invalid REDIS_URL format")
