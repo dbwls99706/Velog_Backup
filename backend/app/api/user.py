@@ -17,7 +17,6 @@ class UserResponse(BaseModel):
     name: Optional[str]
     picture: Optional[str]
     velog_username: Optional[str]
-    has_google_drive: bool
 
     class Config:
         from_attributes = True
@@ -31,8 +30,11 @@ class VelogUsernameRequest(BaseModel):
 async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
     """현재 로그인한 사용자 정보"""
     return {
-        **current_user.__dict__,
-        "has_google_drive": bool(current_user.google_access_token)
+        "id": current_user.id,
+        "email": current_user.email,
+        "name": current_user.name,
+        "picture": current_user.picture,
+        "velog_username": current_user.velog_username,
     }
 
 
