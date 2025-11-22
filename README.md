@@ -4,7 +4,7 @@
 
 ## 주요 기능
 
-- **Google 로그인**: Google 계정으로 간편하게 시작
+- **GitHub 로그인**: GitHub 계정으로 간편하게 시작
 - **서버 저장**: 포스트가 서버에 안전하게 저장됨
 - **영구 보존**: Velog에서 삭제해도 백업은 유지
 - **마크다운 다운로드**: 언제든지 .md 파일로 내려받기
@@ -14,8 +14,8 @@
 
 ### 1. 회원가입
 1. [velog-backup.vercel.app](https://velog-backup.vercel.app) 접속
-2. "Google로 시작하기" 클릭
-3. Google 계정으로 로그인
+2. "GitHub로 시작하기" 클릭
+3. GitHub 계정으로 로그인
 
 ### 2. Velog 계정 연동
 1. 대시보드에서 Velog 사용자명 입력 (예: `username`)
@@ -46,7 +46,7 @@ A: 아니요. 각 사용자는 자신의 백업만 볼 수 있습니다.
 
 ## 보안
 
-- Google OAuth 2.0 공식 인증 사용
+- GitHub OAuth 공식 인증 사용
 - 비밀번호 저장 없음
 - HTTPS 암호화 전송
 - 언제든지 데이터 삭제 가능
