@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
@@ -209,7 +209,7 @@ async def get_backup_stats(
 
 @router.get("/logs", response_model=List[BackupLogResponse])
 async def get_backup_logs(
-    limit: int = 20,
+    limit: int = Query(default=20, ge=1, le=100),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -223,8 +223,8 @@ async def get_backup_logs(
 
 @router.get("/posts", response_model=PostListResponse)
 async def get_backed_up_posts(
-    page: int = 1,
-    limit: int = 20,
+    page: int = Query(default=1, ge=1, le=1000),
+    limit: int = Query(default=20, ge=1, le=100),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):

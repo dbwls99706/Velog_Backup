@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
+import re
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
@@ -24,6 +25,18 @@ class UserResponse(BaseModel):
 
 class VelogUsernameRequest(BaseModel):
     username: str
+
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        v = v.strip().lstrip('@')
+        if not v:
+            raise ValueError('사용자명을 입력해주세요')
+        if len(v) > 50:
+            raise ValueError('사용자명이 너무 깁니다')
+        if not re.match(r'^[a-zA-Z0-9_-]+$', v):
+            raise ValueError('사용자명은 영문, 숫자, _, -만 사용할 수 있습니다')
+        return v
 
 
 @router.get("/me", response_model=UserResponse)
