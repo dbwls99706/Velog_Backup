@@ -2,6 +2,10 @@
 
 > Velog 블로그 포스트를 서버에 무료로 백업하는 웹 서비스
 
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![Next.js](https://img.shields.io/badge/Next.js-14-black)
+![License](https://img.shields.io/badge/License-MIT-green)
+
 [![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new)
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new)
 
