@@ -53,7 +53,7 @@ export default function HomePage() {
             </div>
             <h1 className="text-5xl font-bold mb-6">Velog Backup</h1>
             <p className="text-xl mb-8 text-primary-100">
-              Velog 블로그 포스트를 Google Drive에 자동으로 백업하세요
+              Velog 블로그 포스트를 서버에 무료로 백업하세요
             </p>
             <div className="flex justify-center">
               <GoogleLogin
@@ -86,7 +86,7 @@ export default function HomePage() {
             <Shield className="mx-auto mb-4 text-primary-600" size={48} />
             <h3 className="text-xl font-bold mb-2">안전한 보관</h3>
             <p className="text-gray-600">
-              Google Drive에 안전하게 저장됩니다
+              서버에 안전하게 저장됩니다
             </p>
           </div>
 

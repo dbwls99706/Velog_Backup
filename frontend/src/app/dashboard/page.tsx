@@ -131,10 +131,10 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm text-gray-600">저장소</p>
                 <p className="text-lg font-semibold mt-1">
-                  <span className="text-green-600">서버 DB</span>
+                  <span className="text-primary-600">서버 DB</span>
                 </p>
               </div>
-              <Database className="text-green-600" size={40} />
+              <Database className="text-primary-600" size={40} />
             </div>
           </div>
         </div>
@@ -160,7 +160,7 @@ export default function DashboardPage() {
             </button>
           </div>
           {user?.velog_username && (
-            <p className="text-sm text-green-600 mt-2">
+            <p className="text-sm text-primary-600 mt-2">
               @{user.velog_username} 계정이 연동되었습니다
             </p>
           )}
@@ -213,7 +213,7 @@ export default function DashboardPage() {
                 <div key={log.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                   <div>
                     <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                      log.status === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      log.status === 'success' ? 'bg-gray-200 text-gray-800' : 'bg-red-100 text-red-800'
                     }`}>
                       {log.status}
                     </span>
