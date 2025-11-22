@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -43,33 +41,6 @@ def decode_token(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-def verify_google_token(token: str) -> dict:
-    """Google ID 토큰 검증"""
-    try:
-        # Google ID 토큰 검증
-        idinfo = id_token.verify_oauth2_token(
-            token,
-            google_requests.Request(),
-            settings.GOOGLE_CLIENT_ID
-        )
-
-        # 토큰 발급자 확인
-        if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
-            raise ValueError('Wrong issuer.')
-
-        return {
-            "email": idinfo['email'],
-            "name": idinfo.get('name'),
-            "picture": idinfo.get('picture'),
-            "google_id": idinfo['sub']
-        }
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid Google token: {str(e)}"
         )
 
 

@@ -9,14 +9,10 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
-    google_id = Column(String, unique=True, index=True, nullable=False)
+    github_id = Column(String, unique=True, index=True, nullable=True)
     name = Column(String, nullable=True)
     picture = Column(String, nullable=True)
     velog_username = Column(String, index=True, nullable=True)
-
-    # Google Drive Token (암호화 저장 권장)
-    google_access_token = Column(String, nullable=True)
-    google_refresh_token = Column(String, nullable=True)
 
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

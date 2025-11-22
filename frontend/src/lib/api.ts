@@ -29,15 +29,10 @@ api.interceptors.response.use(
 );
 
 export const authAPI = {
-  googleLogin: (token: string) => api.post('/auth/google', { token }),
+  getGitHubUrl: () => api.get('/auth/github/url'),
+  gitHubCallback: (code: string) => api.post('/auth/github/callback', { code }),
   getCurrentUser: () => api.get('/user/me'),
   verifyVelog: (username: string) => api.post('/user/velog/verify', { username }),
-};
-
-export const googleAPI = {
-  getAuthUrl: () => api.get('/google/auth-url'),
-  connect: (code: string) => api.post('/google/connect', { code }),
-  disconnect: () => api.delete('/google/disconnect'),
 };
 
 export const backupAPI = {
