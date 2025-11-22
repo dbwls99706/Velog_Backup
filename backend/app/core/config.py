@@ -1,6 +1,5 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
-import secrets
 
 
 class Settings(BaseSettings):
@@ -20,20 +19,20 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
-    # Google OAuth
-    GOOGLE_CLIENT_ID: str
-    GOOGLE_CLIENT_SECRET: str
+    # GitHub OAuth
+    GITHUB_CLIENT_ID: str
+    GITHUB_CLIENT_SECRET: str
 
     # CORS
     FRONTEND_URL: str = "https://velog-backup.vercel.app"
     CORS_ORIGINS: str = ""
 
     @property
-    def GOOGLE_REDIRECT_URI(self) -> str:
-        """동적으로 리다이렉트 URI 생성"""
+    def GITHUB_REDIRECT_URI(self) -> str:
+        """GitHub OAuth 리다이렉트 URI"""
         if self.ENVIRONMENT == "development":
-            return "http://localhost:3000/api/auth/google/callback"
-        return f"{self.FRONTEND_URL}/api/auth/google/callback"
+            return "http://localhost:3000/auth/callback"
+        return f"{self.FRONTEND_URL}/auth/callback"
 
     @property
     def ALLOWED_ORIGINS(self) -> list:
@@ -47,10 +46,6 @@ class Settings(BaseSettings):
                 "http://127.0.0.1:3000",
             ])
         return origins
-
-    # Celery (Optional)
-    CELERY_BROKER_URL: Optional[str] = None
-    CELERY_RESULT_BACKEND: Optional[str] = None
 
     class Config:
         env_file = ".env"

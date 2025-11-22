@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { GoogleLogin, CredentialResponse } from '@react-oauth/google'
-import { BookOpen, Cloud, Shield, Zap } from 'lucide-react'
+import { BookOpen, Cloud, Shield, Zap, Github } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { authAPI } from '@/lib/api'
 
 export default function HomePage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -20,19 +20,14 @@ export default function HomePage() {
     }
   }, [router])
 
-  const handleGoogleLogin = async (response: CredentialResponse) => {
+  const handleGitHubLogin = async () => {
+    setIsLoggingIn(true)
     try {
-      if (!response.credential) {
-        toast.error('로그인에 실패했습니다')
-        return
-      }
-
-      const result = await authAPI.googleLogin(response.credential)
-      localStorage.setItem('access_token', result.data.access_token)
-      toast.success('로그인 성공!')
-      router.push('/dashboard')
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || '로그인에 실패했습니다')
+      const response = await authAPI.getGitHubUrl()
+      window.location.href = response.data.auth_url
+    } catch (error) {
+      toast.error('로그인에 실패했습니다')
+      setIsLoggingIn(false)
     }
   }
 
@@ -56,15 +51,14 @@ export default function HomePage() {
               Velog 블로그 포스트를 서버에 무료로 백업하세요
             </p>
             <div className="flex justify-center">
-              <GoogleLogin
-                onSuccess={handleGoogleLogin}
-                onError={() => toast.error('로그인에 실패했습니다')}
-                useOneTap
-                theme="filled_blue"
-                size="large"
-                text="continue_with"
-                locale="ko"
-              />
+              <button
+                onClick={handleGitHubLogin}
+                disabled={isLoggingIn}
+                className="flex items-center gap-3 bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
+              >
+                <Github size={24} />
+                {isLoggingIn ? '로그인 중...' : 'GitHub로 시작하기'}
+              </button>
             </div>
           </div>
         </div>
