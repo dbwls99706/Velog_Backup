@@ -113,7 +113,8 @@ async def github_callback(request: GitHubCallbackRequest, db: Session = Depends(
                 email=email,
                 github_id=github_id,
                 name=github_user.get("name") or github_user.get("login"),
-                picture=github_user.get("avatar_url")
+                picture=github_user.get("avatar_url"),
+                is_active=True
             )
             db.add(user)
 
