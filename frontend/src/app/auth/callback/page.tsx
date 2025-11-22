@@ -1,17 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { BookOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { authAPI } from '@/lib/api'
 
 export default function AuthCallbackPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
+  const hasRun = useRef(false)
 
   useEffect(() => {
+    if (hasRun.current) return
+    hasRun.current = true
+
     const code = searchParams.get('code')
     const errorParam = searchParams.get('error')
 
@@ -33,7 +36,7 @@ export default function AuthCallbackPage() {
       const response = await authAPI.gitHubCallback(code)
       localStorage.setItem('access_token', response.data.access_token)
       toast.success('로그인 성공!')
-      router.push('/dashboard')
+      window.location.href = '/dashboard'
     } catch (error: any) {
       console.error('GitHub callback error:', error)
       setError(error.response?.data?.detail || 'GitHub 인증에 실패했습니다')
@@ -47,7 +50,7 @@ export default function AuthCallbackPage() {
         <h1 className="text-2xl font-bold mb-2">인증 실패</h1>
         <p className="text-gray-600 mb-4">{error}</p>
         <button
-          onClick={() => router.push('/')}
+          onClick={() => window.location.href = '/'}
           className="btn btn-primary"
         >
           홈으로 돌아가기
