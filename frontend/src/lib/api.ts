@@ -45,3 +45,10 @@ export const backupAPI = {
   getStats: () => api.get('/backup/stats'),
   getLogs: (limit: number = 20) => api.get(`/backup/logs?limit=${limit}`),
 };
+
+export const postsAPI = {
+  getAll: (page: number = 1, limit: number = 20) =>
+    api.get(`/backup/posts?page=${page}&limit=${limit}`),
+  getOne: (postId: number) => api.get(`/backup/posts/${postId}`),
+  delete: (postId: number) => api.delete(`/backup/posts/${postId}`),
+};

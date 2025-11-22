@@ -5,7 +5,7 @@ from app.core.database import Base
 
 
 class PostCache(Base):
-    """Velog 포스트 캐시 - 변경 감지용"""
+    """Velog 포스트 백업 저장소 - 서버에 직접 저장"""
     __tablename__ = "post_cache"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -14,7 +14,8 @@ class PostCache(Base):
     # Velog Post Info
     slug = Column(String, index=True, nullable=False)
     title = Column(String, nullable=False)
-    content_hash = Column(String, nullable=False)  # MD5 hash
+    content = Column(Text, nullable=True)  # 마크다운 전체 내용 저장
+    content_hash = Column(String, nullable=False)  # MD5 hash for change detection
     thumbnail = Column(String, nullable=True)
     tags = Column(Text, nullable=True)  # JSON string
 

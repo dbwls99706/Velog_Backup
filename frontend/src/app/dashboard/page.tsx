@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { BookOpen, LogOut, Cloud, FileText, Calendar, Play } from 'lucide-react'
+import Link from 'next/link'
+import { BookOpen, LogOut, Database, FileText, Calendar, Play, FolderOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { authAPI, googleAPI, backupAPI } from '@/lib/api'
+import { authAPI, backupAPI } from '@/lib/api'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
@@ -49,15 +50,6 @@ export default function DashboardPage() {
       loadData()
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Velog 계정을 찾을 수 없습니다')
-    }
-  }
-
-  const handleConnectDrive = async () => {
-    try {
-      const response = await googleAPI.getAuthUrl()
-      window.location.href = response.data.auth_url
-    } catch (error) {
-      toast.error('Google Drive 연동에 실패했습니다')
     }
   }
 
@@ -113,7 +105,7 @@ export default function DashboardPage() {
           <div className="card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">총 포스트</p>
+                <p className="text-sm text-gray-600">총 백업 포스트</p>
                 <p className="text-3xl font-bold mt-1">{stats?.total_posts || 0}</p>
               </div>
               <FileText className="text-primary-600" size={40} />
@@ -137,16 +129,12 @@ export default function DashboardPage() {
           <div className="card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Google Drive</p>
+                <p className="text-sm text-gray-600">저장소</p>
                 <p className="text-lg font-semibold mt-1">
-                  {stats?.google_drive_connected ? (
-                    <span className="text-green-600">연결됨</span>
-                  ) : (
-                    <span className="text-gray-400">미연결</span>
-                  )}
+                  <span className="text-green-600">서버 DB</span>
                 </p>
               </div>
-              <Cloud className={stats?.google_drive_connected ? 'text-green-600' : 'text-gray-400'} size={40} />
+              <Database className="text-green-600" size={40} />
             </div>
           </div>
         </div>
@@ -173,23 +161,8 @@ export default function DashboardPage() {
           </div>
           {user?.velog_username && (
             <p className="text-sm text-green-600 mt-2">
-              ✓ @{user.velog_username} 계정이 연동되었습니다
+              @{user.velog_username} 계정이 연동되었습니다
             </p>
-          )}
-        </div>
-
-        {/* Google Drive Connection */}
-        <div className="card mb-6">
-          <h2 className="text-xl font-bold mb-4">Google Drive 연동</h2>
-          {stats?.google_drive_connected ? (
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-green-800">✓ Google Drive가 연결되어 있습니다</p>
-            </div>
-          ) : (
-            <button onClick={handleConnectDrive} className="btn btn-primary">
-              <Cloud size={16} className="inline mr-1" />
-              Google Drive 연결하기
-            </button>
           )}
         </div>
 
@@ -199,12 +172,12 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-xl font-bold">백업 실행</h2>
               <p className="text-sm text-gray-600 mt-1">
-                Velog 포스트를 Google Drive에 백업합니다
+                Velog 포스트를 서버에 백업합니다 (무료)
               </p>
             </div>
             <button
               onClick={handleBackup}
-              disabled={isBackingUp || !stats?.velog_connected || !stats?.google_drive_connected}
+              disabled={isBackingUp || !stats?.velog_connected}
               className="btn btn-primary flex items-center space-x-2"
             >
               <Play size={18} />
@@ -212,6 +185,24 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+
+        {/* View Posts */}
+        {stats?.total_posts > 0 && (
+          <div className="card mb-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold">백업된 포스트</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {stats?.total_posts}개의 포스트가 서버에 저장되어 있습니다
+                </p>
+              </div>
+              <Link href="/posts" className="btn btn-secondary flex items-center space-x-2">
+                <FolderOpen size={18} />
+                <span>포스트 보기</span>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Recent Logs */}
         {stats?.recent_logs && stats.recent_logs.length > 0 && (

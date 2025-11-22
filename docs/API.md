@@ -59,8 +59,7 @@ Authorization: Bearer <token>
   "id": 1,
   "email": "user@example.com",
   "name": "홍길동",
-  "velog_username": "username",
-  "has_google_drive": true
+  "velog_username": "username"
 }
 ```
 
@@ -85,57 +84,11 @@ Velog 사용자명 검증 및 연동
 
 ---
 
-## Google Drive
-
-### GET /google/auth-url
-
-Google Drive OAuth URL 생성
-
-**Response:**
-```json
-{
-  "auth_url": "https://accounts.google.com/o/oauth2/auth?...",
-  "state": "random_state"
-}
-```
-
-### POST /google/connect
-
-Google Drive 연동
-
-**Request Body:**
-```json
-{
-  "code": "oauth_authorization_code"
-}
-```
-
-**Response:**
-```json
-{
-  "message": "Google Drive가 연동되었습니다",
-  "folder_id": "drive_folder_id"
-}
-```
-
-### DELETE /google/disconnect
-
-Google Drive 연동 해제
-
-**Response:**
-```json
-{
-  "message": "Google Drive 연동이 해제되었습니다"
-}
-```
-
----
-
 ## 백업 (Backup)
 
 ### POST /backup/trigger
 
-수동 백업 시작
+수동 백업 시작 - 포스트를 서버 DB에 저장
 
 **Request Body:**
 ```json
@@ -160,7 +113,6 @@ Google Drive 연동 해제
 {
   "total_posts": 10,
   "last_backup": "2024-11-20T10:30:00Z",
-  "google_drive_connected": true,
   "velog_connected": true,
   "recent_logs": [
     {
@@ -204,6 +156,68 @@ Google Drive 연동 해제
 
 ---
 
+## 포스트 (Posts)
+
+### GET /backup/posts?page=1&limit=20
+
+백업된 포스트 목록 조회 (자신의 포스트만)
+
+**Query Parameters:**
+- `page`: 페이지 번호 (기본값: 1)
+- `limit`: 페이지당 포스트 수 (기본값: 20)
+
+**Response:**
+```json
+{
+  "posts": [
+    {
+      "id": 1,
+      "slug": "my-first-post",
+      "title": "나의 첫 번째 포스트",
+      "content": "---\ntitle: ...",
+      "thumbnail": "https://...",
+      "tags": "[\"React\", \"JavaScript\"]",
+      "velog_published_at": "2024-01-15T10:00:00Z",
+      "last_backed_up": "2024-11-20T10:30:00Z"
+    }
+  ],
+  "total": 50,
+  "page": 1,
+  "limit": 20
+}
+```
+
+### GET /backup/posts/{post_id}
+
+백업된 특정 포스트 조회 (자신의 포스트만)
+
+**Response:**
+```json
+{
+  "id": 1,
+  "slug": "my-first-post",
+  "title": "나의 첫 번째 포스트",
+  "content": "---\ntitle: 나의 첫 번째 포스트\ndate: 2024-01-15\ntags:\n  - React\n  - JavaScript\n---\n\n# 서론\n...",
+  "thumbnail": "https://...",
+  "tags": "[\"React\", \"JavaScript\"]",
+  "velog_published_at": "2024-01-15T10:00:00Z",
+  "last_backed_up": "2024-11-20T10:30:00Z"
+}
+```
+
+### DELETE /backup/posts/{post_id}
+
+백업된 포스트 삭제 (자신의 포스트만)
+
+**Response:**
+```json
+{
+  "message": "포스트가 삭제되었습니다"
+}
+```
+
+---
+
 ## 에러 응답
 
 ### 400 Bad Request
@@ -223,7 +237,7 @@ Google Drive 연동 해제
 ### 404 Not Found
 ```json
 {
-  "detail": "리소스를 찾을 수 없습니다"
+  "detail": "포스트를 찾을 수 없습니다"
 }
 ```
 
@@ -238,11 +252,7 @@ Google Drive 연동 해제
 
 ## Rate Limiting
 
-현재 Rate Limiting은 적용되지 않았습니다. 향후 추가될 예정입니다.
-
-## Webhooks
-
-현재 Webhook은 지원하지 않습니다. 향후 추가될 예정입니다.
+현재 Rate Limiting은 적용되지 않았습니다.
 
 ---
 
@@ -252,5 +262,3 @@ FastAPI는 자동으로 Interactive API 문서를 생성합니다:
 
 - **Swagger UI**: `http://localhost:8000/docs`
 - **ReDoc**: `http://localhost:8000/redoc`
-
-프로덕션 환경에서는 보안을 위해 비활성화됩니다.
