@@ -113,14 +113,15 @@ async def github_callback(request: GitHubCallbackRequest, db: Session = Depends(
                 email=email,
                 github_id=github_id,
                 name=github_user.get("name") or github_user.get("login"),
-                picture=github_user.get("avatar_url")
+                picture=github_user.get("avatar_url"),
+                is_active=True
             )
             db.add(user)
 
         db.commit()
         db.refresh(user)
 
-    # JWT 토큰 생성
-    access_token = create_access_token(data={"sub": user.id})
+    # JWT 토큰 생성 (user.id를 문자열로 변환)
+    access_token = create_access_token(data={"sub": str(user.id)})
 
     return {"access_token": access_token, "token_type": "bearer"}
