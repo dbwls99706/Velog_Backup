@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from datetime import datetime
+import json
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
@@ -11,7 +12,6 @@ from app.models.post import PostCache
 from app.models.backup import BackupLog, BackupStatus
 from app.services.velog import VelogService
 from app.services.markdown import MarkdownService
-from app.services.google_drive import GoogleDriveService
 
 router = APIRouter()
 
@@ -38,15 +38,35 @@ class BackupLogResponse(BaseModel):
 class BackupStatsResponse(BaseModel):
     total_posts: int
     last_backup: datetime | None
-    google_drive_connected: bool
     velog_connected: bool
     recent_logs: List[BackupLogResponse]
 
 
+class PostResponse(BaseModel):
+    id: int
+    slug: str
+    title: str
+    content: Optional[str]
+    thumbnail: Optional[str]
+    tags: Optional[str]
+    velog_published_at: Optional[datetime]
+    last_backed_up: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class PostListResponse(BaseModel):
+    posts: List[PostResponse]
+    total: int
+    page: int
+    limit: int
+
+
 async def perform_backup_task(user_id: int, force: bool, db: Session):
-    """백업 작업 수행 (백그라운드)"""
+    """백업 작업 수행 (백그라운드) - 서버 DB에 직접 저장"""
     user = db.query(User).filter(User.id == user_id).first()
-    if not user or not user.velog_username or not user.google_access_token:
+    if not user or not user.velog_username:
         return
 
     # 백업 로그 시작
@@ -62,10 +82,6 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
 
         backup_log.posts_total = len(posts)
         db.commit()
-
-        # Google Drive 서비스
-        drive = GoogleDriveService(user.google_access_token, user.google_refresh_token)
-        folder_id = drive.get_or_create_backup_folder()
 
         posts_new = 0
         posts_updated = 0
@@ -91,7 +107,7 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
                     posts_skipped += 1
                     continue
 
-                # Markdown 변환
+                # Markdown 변환 (frontmatter 포함)
                 markdown_content = MarkdownService.convert_to_markdown(
                     title=post_data['title'],
                     content=post_data['body'],
@@ -101,18 +117,13 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
                     url_slug=post_data.get('url_slug')
                 )
 
-                filename = MarkdownService.generate_filename(
-                    post_data['url_slug'],
-                    post_data.get('released_at')
-                )
-
-                # Google Drive 업로드
-                drive.upload_or_update_file(filename, markdown_content, folder_id)
-
-                # 캐시 업데이트
+                # DB에 직접 저장
                 if existing_post:
+                    existing_post.content = markdown_content
                     existing_post.content_hash = content_hash
                     existing_post.title = post_data['title']
+                    existing_post.thumbnail = post_data.get('thumbnail')
+                    existing_post.tags = json.dumps(post_data.get('tags', []))
                     existing_post.last_backed_up = datetime.utcnow()
                     posts_updated += 1
                 else:
@@ -120,9 +131,10 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
                         user_id=user_id,
                         slug=post_data['url_slug'],
                         title=post_data['title'],
+                        content=markdown_content,
                         content_hash=content_hash,
                         thumbnail=post_data.get('thumbnail'),
-                        tags=str(post_data.get('tags', [])),
+                        tags=json.dumps(post_data.get('tags', [])),
                         velog_published_at=post_data.get('released_at'),
                         last_backed_up=datetime.utcnow()
                     )
@@ -160,12 +172,9 @@ async def trigger_backup(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """수동 백업 트리거"""
+    """수동 백업 트리거 - 서버 DB에 저장"""
     if not current_user.velog_username:
         raise HTTPException(status_code=400, detail="Velog 계정을 먼저 연동해주세요")
-
-    if not current_user.google_access_token:
-        raise HTTPException(status_code=400, detail="Google Drive를 먼저 연동해주세요")
 
     # 백그라운드 작업 추가
     background_tasks.add_task(perform_backup_task, current_user.id, request.force, db)
@@ -193,7 +202,6 @@ async def get_backup_stats(
     return {
         "total_posts": total_posts,
         "last_backup": last_backup_log.completed_at if last_backup_log else None,
-        "google_drive_connected": bool(current_user.google_access_token),
         "velog_connected": bool(current_user.velog_username),
         "recent_logs": recent_logs
     }
@@ -211,3 +219,66 @@ async def get_backup_logs(
     ).order_by(BackupLog.started_at.desc()).limit(limit).all()
 
     return logs
+
+
+@router.get("/posts", response_model=PostListResponse)
+async def get_backed_up_posts(
+    page: int = 1,
+    limit: int = 20,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """백업된 포스트 목록 조회 (각 사용자는 자신의 포스트만 볼 수 있음)"""
+    offset = (page - 1) * limit
+
+    total = db.query(PostCache).filter(PostCache.user_id == current_user.id).count()
+
+    posts = db.query(PostCache).filter(
+        PostCache.user_id == current_user.id
+    ).order_by(PostCache.velog_published_at.desc()).offset(offset).limit(limit).all()
+
+    return {
+        "posts": posts,
+        "total": total,
+        "page": page,
+        "limit": limit
+    }
+
+
+@router.get("/posts/{post_id}", response_model=PostResponse)
+async def get_backed_up_post(
+    post_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """백업된 특정 포스트 조회 (자신의 포스트만 조회 가능)"""
+    post = db.query(PostCache).filter(
+        PostCache.id == post_id,
+        PostCache.user_id == current_user.id  # 자신의 포스트만
+    ).first()
+
+    if not post:
+        raise HTTPException(status_code=404, detail="포스트를 찾을 수 없습니다")
+
+    return post
+
+
+@router.delete("/posts/{post_id}")
+async def delete_backed_up_post(
+    post_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """백업된 포스트 삭제 (자신의 포스트만 삭제 가능)"""
+    post = db.query(PostCache).filter(
+        PostCache.id == post_id,
+        PostCache.user_id == current_user.id
+    ).first()
+
+    if not post:
+        raise HTTPException(status_code=404, detail="포스트를 찾을 수 없습니다")
+
+    db.delete(post)
+    db.commit()
+
+    return {"message": "포스트가 삭제되었습니다"}
