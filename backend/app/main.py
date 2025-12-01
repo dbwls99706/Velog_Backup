@@ -6,7 +6,7 @@ import logging
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.api import auth, user, backup, google
+from app.api import auth, user, backup, google, admin
 
 # 로깅 설정
 logging.basicConfig(
@@ -58,6 +58,7 @@ app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["aut
 app.include_router(user.router, prefix=f"{settings.API_V1_STR}/user", tags=["user"])
 app.include_router(backup.router, prefix=f"{settings.API_V1_STR}/backup", tags=["backup"])
 app.include_router(google.router, prefix=f"{settings.API_V1_STR}/google", tags=["google"])
+app.include_router(admin.router, prefix=f"{settings.API_V1_STR}/admin", tags=["admin"])
 
 
 @app.on_event("startup")
