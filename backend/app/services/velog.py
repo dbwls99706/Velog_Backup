@@ -1,6 +1,9 @@
 import httpx
 import hashlib
+import logging
 from typing import List, Optional, Dict
+
+logger = logging.getLogger(__name__)
 
 
 class VelogService:
@@ -31,7 +34,9 @@ class VelogService:
         """
 
         async with httpx.AsyncClient() as client:
+            page = 0
             while True:
+                page += 1
                 response = await client.post(
                     VelogService.GRAPHQL_ENDPOINT,
                     json={"query": query, "variables": {"username": username, "cursor": cursor}},
@@ -42,21 +47,25 @@ class VelogService:
 
                 if "data" in data and "posts" in data["data"]:
                     posts = data["data"]["posts"]
-                    if not posts:
+                    logger.info(f"Velog API page {page}: received {len(posts)} posts, cursor={cursor}")
+
+                    # 더 이상 포스트가 없으면 종료
+                    if not posts or len(posts) == 0:
+                        logger.info(f"No more posts. Total collected: {len(all_posts)}")
                         break
 
                     # 비공개 포스트 제외하고 추가
-                    all_posts.extend([p for p in posts if not p.get("is_private")])
-
-                    # 100개 미만이면 마지막 페이지
-                    if len(posts) < 100:
-                        break
+                    public_posts = [p for p in posts if not p.get("is_private")]
+                    all_posts.extend(public_posts)
+                    logger.info(f"Public posts in this page: {len(public_posts)}, Total so far: {len(all_posts)}")
 
                     # 다음 페이지를 위한 커서 설정
                     cursor = posts[-1]["id"]
                 else:
+                    logger.warning(f"Unexpected response format: {data}")
                     break
 
+            logger.info(f"Finished fetching posts for {username}. Total: {len(all_posts)}")
             return all_posts
 
     @staticmethod
