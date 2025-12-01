@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 import json
+import asyncio
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
@@ -63,8 +64,74 @@ class PostListResponse(BaseModel):
     limit: int
 
 
+async def process_single_post(
+    semaphore: asyncio.Semaphore,
+    velog: VelogService,
+    username: str,
+    post_info: dict,
+    user_id: int,
+    force: bool,
+    db: Session
+):
+    """단일 포스트 처리 (병렬 처리용)"""
+    async with semaphore:  # 동시 요청 수 제한
+        try:
+            # 전체 포스트 내용 가져오기
+            post_data = await velog.get_post_content(username, post_info['url_slug'])
+            if not post_data:
+                return {'status': 'failed', 'slug': post_info['url_slug']}
+
+            # 변경 감지
+            content_hash = velog.compute_content_hash(post_data['body'])
+            existing_post = db.query(PostCache).filter(
+                PostCache.user_id == user_id,
+                PostCache.slug == post_data['url_slug']
+            ).first()
+
+            if not force and existing_post and existing_post.content_hash == content_hash:
+                return {'status': 'skipped', 'slug': post_info['url_slug']}
+
+            # Markdown 변환
+            markdown_content = MarkdownService.convert_to_markdown(
+                title=post_data['title'],
+                content=post_data['body'],
+                tags=post_data.get('tags', []),
+                published_at=post_data.get('released_at'),
+                thumbnail=post_data.get('thumbnail'),
+                url_slug=post_data.get('url_slug')
+            )
+
+            # DB에 직접 저장 (개별 커밋 제거, 배치로 처리)
+            if existing_post:
+                existing_post.content = markdown_content
+                existing_post.content_hash = content_hash
+                existing_post.title = post_data['title']
+                existing_post.thumbnail = post_data.get('thumbnail')
+                existing_post.tags = json.dumps(post_data.get('tags', []))
+                existing_post.last_backed_up = datetime.utcnow()
+                return {'status': 'updated', 'slug': post_info['url_slug']}
+            else:
+                new_post = PostCache(
+                    user_id=user_id,
+                    slug=post_data['url_slug'],
+                    title=post_data['title'],
+                    content=markdown_content,
+                    content_hash=content_hash,
+                    thumbnail=post_data.get('thumbnail'),
+                    tags=json.dumps(post_data.get('tags', [])),
+                    velog_published_at=post_data.get('released_at'),
+                    last_backed_up=datetime.utcnow()
+                )
+                db.add(new_post)
+                return {'status': 'new', 'slug': post_info['url_slug']}
+
+        except Exception as e:
+            print(f"Error backing up post {post_info.get('url_slug')}: {e}")
+            return {'status': 'failed', 'slug': post_info['url_slug'], 'error': str(e)}
+
+
 async def perform_backup_task(user_id: int, force: bool, db: Session):
-    """백업 작업 수행 (백그라운드) - 서버 DB에 직접 저장"""
+    """백업 작업 수행 (백그라운드) - 서버 DB에 직접 저장 (병렬 처리)"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.velog_username:
         return
@@ -83,69 +150,24 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
         backup_log.posts_total = len(posts)
         db.commit()
 
-        posts_new = 0
-        posts_updated = 0
-        posts_skipped = 0
-        posts_failed = 0
+        # 병렬 처리 (동시 10개씩)
+        semaphore = asyncio.Semaphore(10)
+        tasks = [
+            process_single_post(semaphore, velog, user.velog_username, post_info, user_id, force, db)
+            for post_info in posts
+        ]
 
-        for post_info in posts:
-            try:
-                # 전체 포스트 내용 가져오기
-                post_data = await velog.get_post_content(user.velog_username, post_info['url_slug'])
-                if not post_data:
-                    posts_failed += 1
-                    continue
+        # 모든 포스트를 병렬로 처리
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-                # 변경 감지
-                content_hash = velog.compute_content_hash(post_data['body'])
-                existing_post = db.query(PostCache).filter(
-                    PostCache.user_id == user_id,
-                    PostCache.slug == post_data['url_slug']
-                ).first()
+        # 결과 집계
+        posts_new = sum(1 for r in results if isinstance(r, dict) and r.get('status') == 'new')
+        posts_updated = sum(1 for r in results if isinstance(r, dict) and r.get('status') == 'updated')
+        posts_skipped = sum(1 for r in results if isinstance(r, dict) and r.get('status') == 'skipped')
+        posts_failed = sum(1 for r in results if isinstance(r, dict) and r.get('status') == 'failed')
 
-                if not force and existing_post and existing_post.content_hash == content_hash:
-                    posts_skipped += 1
-                    continue
-
-                # Markdown 변환 (frontmatter 포함)
-                markdown_content = MarkdownService.convert_to_markdown(
-                    title=post_data['title'],
-                    content=post_data['body'],
-                    tags=post_data.get('tags', []),
-                    published_at=post_data.get('released_at'),
-                    thumbnail=post_data.get('thumbnail'),
-                    url_slug=post_data.get('url_slug')
-                )
-
-                # DB에 직접 저장
-                if existing_post:
-                    existing_post.content = markdown_content
-                    existing_post.content_hash = content_hash
-                    existing_post.title = post_data['title']
-                    existing_post.thumbnail = post_data.get('thumbnail')
-                    existing_post.tags = json.dumps(post_data.get('tags', []))
-                    existing_post.last_backed_up = datetime.utcnow()
-                    posts_updated += 1
-                else:
-                    new_post = PostCache(
-                        user_id=user_id,
-                        slug=post_data['url_slug'],
-                        title=post_data['title'],
-                        content=markdown_content,
-                        content_hash=content_hash,
-                        thumbnail=post_data.get('thumbnail'),
-                        tags=json.dumps(post_data.get('tags', [])),
-                        velog_published_at=post_data.get('released_at'),
-                        last_backed_up=datetime.utcnow()
-                    )
-                    db.add(new_post)
-                    posts_new += 1
-
-                db.commit()
-
-            except Exception as e:
-                print(f"Error backing up post {post_info.get('url_slug')}: {e}")
-                posts_failed += 1
+        # 배치 커밋 (한 번에)
+        db.commit()
 
         # 백업 로그 완료
         backup_log.status = BackupStatus.SUCCESS
