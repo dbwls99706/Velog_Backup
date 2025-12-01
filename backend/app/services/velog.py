@@ -10,10 +10,13 @@ class VelogService:
 
     @staticmethod
     async def get_user_posts(username: str) -> List[Dict]:
-        """사용자의 모든 포스트 목록 가져오기"""
+        """사용자의 모든 포스트 목록 가져오기 (페이지네이션)"""
+        all_posts = []
+        cursor = None
+
         query = """
-        query GetPosts($username: String!) {
-            posts(username: $username, limit: 100) {
+        query GetPosts($username: String!, $cursor: ID) {
+            posts(username: $username, cursor: $cursor, limit: 100) {
                 id
                 title
                 short_description
@@ -28,18 +31,33 @@ class VelogService:
         """
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                VelogService.GRAPHQL_ENDPOINT,
-                json={"query": query, "variables": {"username": username}},
-                headers={"Content-Type": "application/json"}
-            )
-            response.raise_for_status()
-            data = response.json()
+            while True:
+                response = await client.post(
+                    VelogService.GRAPHQL_ENDPOINT,
+                    json={"query": query, "variables": {"username": username, "cursor": cursor}},
+                    headers={"Content-Type": "application/json"}
+                )
+                response.raise_for_status()
+                data = response.json()
 
-            if "data" in data and "posts" in data["data"]:
-                # 비공개 포스트 제외
-                return [p for p in data["data"]["posts"] if not p.get("is_private")]
-            return []
+                if "data" in data and "posts" in data["data"]:
+                    posts = data["data"]["posts"]
+                    if not posts:
+                        break
+
+                    # 비공개 포스트 제외하고 추가
+                    all_posts.extend([p for p in posts if not p.get("is_private")])
+
+                    # 100개 미만이면 마지막 페이지
+                    if len(posts) < 100:
+                        break
+
+                    # 다음 페이지를 위한 커서 설정
+                    cursor = posts[-1]["id"]
+                else:
+                    break
+
+            return all_posts
 
     @staticmethod
     async def get_post_content(username: str, slug: str) -> Optional[Dict]:
