@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { BookOpen, LogOut, Database, FileText, Calendar, Play, FolderOpen } from 'lucide-react'
+import { BookOpen, LogOut, Database, FileText, Calendar, Play, FolderOpen, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { authAPI, backupAPI } from '@/lib/api'
 import { format } from 'date-fns'
@@ -63,6 +63,41 @@ export default function DashboardPage() {
       toast.error(error.response?.data?.detail || '백업 시작에 실패했습니다')
     } finally {
       setIsBackingUp(false)
+    }
+  }
+
+  const handleDownloadZip = async () => {
+    try {
+      toast.loading('ZIP 파일을 생성하는 중...')
+      const response = await backupAPI.downloadZip()
+
+      // Blob을 다운로드
+      const blob = new Blob([response.data], { type: 'application/zip' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+
+      // 파일명 추출 (Content-Disposition 헤더에서)
+      const contentDisposition = response.headers['content-disposition']
+      let filename = 'velog_backup.zip'
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename=(.+)/)
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1]
+        }
+      }
+
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+
+      toast.dismiss()
+      toast.success('ZIP 파일 다운로드가 완료되었습니다!')
+    } catch (error: any) {
+      toast.dismiss()
+      toast.error(error.response?.data?.detail || 'ZIP 파일 다운로드에 실패했습니다')
     }
   }
 
@@ -196,10 +231,19 @@ export default function DashboardPage() {
                   {stats?.total_posts}개의 포스트가 서버에 저장되어 있습니다
                 </p>
               </div>
-              <Link href="/posts" className="btn btn-secondary flex items-center space-x-2">
-                <FolderOpen size={18} />
-                <span>포스트 보기</span>
-              </Link>
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleDownloadZip}
+                  className="btn btn-primary flex items-center space-x-2"
+                >
+                  <Download size={18} />
+                  <span>전체 다운로드 (ZIP)</span>
+                </button>
+                <Link href="/posts" className="btn btn-secondary flex items-center space-x-2">
+                  <FolderOpen size={18} />
+                  <span>포스트 보기</span>
+                </Link>
+              </div>
             </div>
           </div>
         )}

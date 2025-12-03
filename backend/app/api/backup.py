@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 import json
 import asyncio
+import zipfile
+import io
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
@@ -304,3 +307,49 @@ async def delete_backed_up_post(
     db.commit()
 
     return {"message": "포스트가 삭제되었습니다"}
+
+
+@router.get("/download-zip")
+async def download_all_posts_as_zip(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """백업된 모든 포스트를 ZIP 파일로 다운로드 (자신의 포스트만)"""
+    # 사용자의 모든 포스트 조회
+    posts = db.query(PostCache).filter(
+        PostCache.user_id == current_user.id
+    ).order_by(PostCache.velog_published_at.desc()).all()
+
+    if not posts or len(posts) == 0:
+        raise HTTPException(status_code=404, detail="백업된 포스트가 없습니다")
+
+    # 메모리에 ZIP 파일 생성
+    zip_buffer = io.BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for post in posts:
+            # 파일명 생성
+            filename = MarkdownService.generate_filename(
+                post.slug,
+                post.velog_published_at.isoformat() if post.velog_published_at else None
+            )
+
+            # ZIP에 파일 추가
+            zip_file.writestr(filename, post.content)
+
+    # ZIP 파일 포인터를 처음으로 이동
+    zip_buffer.seek(0)
+
+    # 파일명 생성 (사용자명_백업_날짜.zip)
+    username = current_user.velog_username or current_user.email.split('@')[0]
+    today = datetime.utcnow().strftime('%Y%m%d')
+    zip_filename = f"velog_backup_{username}_{today}.zip"
+
+    # StreamingResponse로 반환
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename={zip_filename}"
+        }
+    )

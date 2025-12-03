@@ -39,6 +39,7 @@ export const backupAPI = {
   trigger: (force: boolean = false) => api.post('/backup/trigger', { force }),
   getStats: () => api.get('/backup/stats'),
   getLogs: (limit: number = 20) => api.get(`/backup/logs?limit=${limit}`),
+  downloadZip: () => api.get('/backup/download-zip', { responseType: 'blob' }),
 };
 
 export const postsAPI = {
