@@ -57,7 +57,7 @@ async def verify_velog(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Velog 사용자명 확인 및 저장"""
+    """Velog 사용자명 확인 및 저장 (수정 가능)"""
     # @ 제거
     username = request.username.lstrip('@')
 
@@ -70,8 +70,12 @@ async def verify_velog(
             detail="Velog 사용자를 찾을 수 없습니다"
         )
 
+    # 이전 username과 동일한지 확인
+    is_update = current_user.velog_username and current_user.velog_username != username
+
     # 사용자 정보 업데이트
     current_user.velog_username = username
     db.commit()
 
-    return {"message": "Velog 계정이 연동되었습니다", "username": username}
+    message = "Velog 계정이 수정되었습니다" if is_update else "Velog 계정이 연동되었습니다"
+    return {"message": message, "username": username}
