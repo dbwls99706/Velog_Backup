@@ -247,8 +247,9 @@ export default function DashboardPage() {
             </p>
           )}
           {isEditingVelog && (
-            <p className="text-sm text-yellow-600 mt-2">
-              ⚠️ 계정을 변경하면 기존 백업 데이터는 유지되지만, 새로운 계정의 포스트를 백업하게 됩니다.
+            <p className="text-sm text-red-600 font-semibold mt-2">
+              ⚠️ 주의: 계정을 변경하면 기존에 백업된 모든 포스트가 삭제됩니다!<br />
+              변경 후 다시 백업을 실행해주세요.
             </p>
           )}
         </div>
