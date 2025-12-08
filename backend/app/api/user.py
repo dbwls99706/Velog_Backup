@@ -3,11 +3,16 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, field_validator
 from typing import Optional
 import re
+import logging
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.user import User
+from app.models.post import PostCache
+from app.models.backup import BackupLog
 from app.services.velog import VelogService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -57,7 +62,7 @@ async def verify_velog(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Velog 사용자명 확인 및 저장"""
+    """Velog 사용자명 확인 및 저장 (수정 가능)"""
     # @ 제거
     username = request.username.lstrip('@')
 
@@ -70,8 +75,31 @@ async def verify_velog(
             detail="Velog 사용자를 찾을 수 없습니다"
         )
 
+    # 이전 username과 동일한지 확인
+    is_update = current_user.velog_username and current_user.velog_username != username
+
+    # username 변경 시 이전 포스트 및 백업 로그 삭제
+    if is_update:
+        # 삭제할 포스트 개수 조회
+        deleted_posts = db.query(PostCache).filter(
+            PostCache.user_id == current_user.id
+        ).count()
+
+        # 이전 포스트 모두 삭제
+        db.query(PostCache).filter(
+            PostCache.user_id == current_user.id
+        ).delete()
+
+        # 백업 로그도 삭제
+        db.query(BackupLog).filter(
+            BackupLog.user_id == current_user.id
+        ).delete()
+
+        logger.info(f"User {current_user.id} changed username from '{current_user.velog_username}' to '{username}'. Deleted {deleted_posts} posts.")
+
     # 사용자 정보 업데이트
     current_user.velog_username = username
     db.commit()
 
-    return {"message": "Velog 계정이 연동되었습니다", "username": username}
+    message = "Velog 계정이 수정되었습니다" if is_update else "Velog 계정이 연동되었습니다"
+    return {"message": message, "username": username}

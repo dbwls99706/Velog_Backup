@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { BookOpen, LogOut, Database, FileText, Calendar, Play, FolderOpen, Download } from 'lucide-react'
+import { BookOpen, LogOut, Database, FileText, Calendar, Play, FolderOpen, Download, Edit, X, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { authAPI, backupAPI } from '@/lib/api'
 import { format } from 'date-fns'
@@ -16,10 +16,27 @@ export default function DashboardPage() {
   const [velogUsername, setVelogUsername] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isBackingUp, setIsBackingUp] = useState(false)
+  const [isEditingVelog, setIsEditingVelog] = useState(false)
 
   useEffect(() => {
     loadData()
   }, [])
+
+  // 백업 상태 폴링 (진행 중인 백업이 있을 때)
+  useEffect(() => {
+    const hasInProgressBackup = stats?.recent_logs?.some(
+      (log: any) => log.status === 'in_progress'
+    )
+
+    if (!hasInProgressBackup) return
+
+    // 3초마다 상태 확인
+    const interval = setInterval(() => {
+      loadData()
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [stats])
 
   const loadData = async () => {
     try {
@@ -45,12 +62,22 @@ export default function DashboardPage() {
 
   const handleVerifyVelog = async () => {
     try {
-      await authAPI.verifyVelog(velogUsername)
-      toast.success('Velog 계정이 연동되었습니다!')
+      const response = await authAPI.verifyVelog(velogUsername)
+      toast.success(response.data.message)
+      setIsEditingVelog(false)
       loadData()
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Velog 계정을 찾을 수 없습니다')
     }
+  }
+
+  const handleEditVelog = () => {
+    setIsEditingVelog(true)
+  }
+
+  const handleCancelEditVelog = () => {
+    setVelogUsername(user?.velog_username || '')
+    setIsEditingVelog(false)
   }
 
   const handleBackup = async () => {
@@ -184,19 +211,45 @@ export default function DashboardPage() {
               placeholder="@username"
               value={velogUsername}
               onChange={(e) => setVelogUsername(e.target.value)}
-              disabled={!!user?.velog_username}
+              disabled={!!user?.velog_username && !isEditingVelog}
             />
-            <button
-              onClick={handleVerifyVelog}
-              className="btn btn-primary"
-              disabled={!!user?.velog_username}
-            >
-              {user?.velog_username ? '연동됨' : '확인'}
-            </button>
+            {!user?.velog_username || isEditingVelog ? (
+              <>
+                <button
+                  onClick={handleVerifyVelog}
+                  className="btn btn-primary"
+                  disabled={!velogUsername.trim()}
+                >
+                  {user?.velog_username ? '저장' : '확인'}
+                </button>
+                {isEditingVelog && (
+                  <button
+                    onClick={handleCancelEditVelog}
+                    className="btn btn-secondary"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={handleEditVelog}
+                className="btn btn-secondary flex items-center space-x-1"
+              >
+                <Edit size={16} />
+                <span>수정</span>
+              </button>
+            )}
           </div>
-          {user?.velog_username && (
+          {user?.velog_username && !isEditingVelog && (
             <p className="text-sm text-primary-600 mt-2">
               @{user.velog_username} 계정이 연동되었습니다
+            </p>
+          )}
+          {isEditingVelog && (
+            <p className="text-sm text-red-600 font-semibold mt-2">
+              ⚠️ 주의: 계정을 변경하면 기존에 백업된 모든 포스트가 삭제됩니다!<br />
+              변경 후 다시 백업을 실행해주세요.
             </p>
           )}
         </div>
@@ -255,13 +308,22 @@ export default function DashboardPage() {
             <div className="space-y-3">
               {stats.recent_logs.map((log: any) => (
                 <div key={log.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                      log.status === 'success' ? 'bg-gray-200 text-gray-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {log.status}
-                    </span>
-                    <p className="text-sm mt-1">{log.message}</p>
+                  <div className="flex items-center space-x-2">
+                    {log.status === 'in_progress' && (
+                      <Loader2 className="animate-spin text-blue-600" size={16} />
+                    )}
+                    <div>
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                        log.status === 'success'
+                          ? 'bg-gray-200 text-gray-800'
+                          : log.status === 'in_progress'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {log.status === 'in_progress' ? '진행 중' : log.status}
+                      </span>
+                      <p className="text-sm mt-1">{log.message || '백업 진행 중...'}</p>
+                    </div>
                   </div>
                   <span className="text-sm text-gray-600">
                     {format(new Date(log.started_at), 'MM/dd HH:mm')}
