@@ -30,7 +30,7 @@ api.interceptors.response.use(
 
 export const authAPI = {
   getGitHubUrl: () => api.get('/auth/github/url'),
-  gitHubCallback: (code: string) => api.post('/auth/github/callback', { code }),
+  gitHubCallback: (code: string, state?: string) => api.post('/auth/github/callback', { code, state }),
   getCurrentUser: () => api.get('/user/me'),
   verifyVelog: (username: string) => api.post('/user/velog/verify', { username }),
 };

@@ -2,7 +2,7 @@ import httpx
 import base64
 import logging
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.services.markdown import MarkdownService
 from app.services.image import ImageService
@@ -214,7 +214,7 @@ class GitHubSyncService:
             new_tree_sha = await self._create_tree(client, owner, repo_name, base_sha, tree_items)
 
             # 3. 커밋 생성 (단일)
-            now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+            now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
             commit_message = f"backup: {synced}개 포스트 동기화 ({now})"
             new_commit_sha = await self._create_commit(client, owner, repo_name, new_tree_sha, base_sha, commit_message)
 
@@ -225,7 +225,7 @@ class GitHubSyncService:
 
     def _generate_readme(self, posts: List, velog_username: str, synced: int) -> str:
         """README.md 내용 생성"""
-        now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
         lines = [
             f"# Velog Backup - @{velog_username}",
@@ -238,7 +238,7 @@ class GitHubSyncService:
             "",
         ]
 
-        for post in sorted(posts, key=lambda p: p.velog_published_at or datetime.min, reverse=True):
+        for post in sorted(posts, key=lambda p: p.velog_published_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True):
             folder_name = MarkdownService.generate_folder_name(post.title)
             date_str = ""
             if post.velog_published_at:

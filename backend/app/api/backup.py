@@ -3,11 +3,13 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import asyncio
 import zipfile
 import io
+import logging
+import httpx
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
@@ -17,6 +19,8 @@ from app.models.backup import BackupLog, BackupStatus
 from app.services.velog import VelogService
 from app.services.markdown import MarkdownService
 from app.services.image import ImageService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -108,7 +112,7 @@ async def process_single_post(
                 existing_post.title = post_data['title']
                 existing_post.thumbnail = post_data.get('thumbnail')
                 existing_post.tags = json.dumps(post_data.get('tags', []))
-                existing_post.last_backed_up = datetime.utcnow()
+                existing_post.last_backed_up = datetime.now(timezone.utc)
                 return {'status': 'updated', 'slug': post_info['url_slug']}
             else:
                 new_post = PostCache(
@@ -120,13 +124,13 @@ async def process_single_post(
                     thumbnail=post_data.get('thumbnail'),
                     tags=json.dumps(post_data.get('tags', [])),
                     velog_published_at=post_data.get('released_at'),
-                    last_backed_up=datetime.utcnow()
+                    last_backed_up=datetime.now(timezone.utc)
                 )
                 db.add(new_post)
                 return {'status': 'new', 'slug': post_info['url_slug']}
 
         except Exception as e:
-            print(f"Error backing up post {post_info.get('url_slug')}: {e}")
+            logger.error(f"Error backing up post {post_info.get('url_slug')}: {e}")
             return {'status': 'failed', 'slug': post_info['url_slug'], 'error': str(e)}
 
 
@@ -168,7 +172,7 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
         backup_log.posts_updated = posts_updated
         backup_log.posts_skipped = posts_skipped
         backup_log.posts_failed = posts_failed
-        backup_log.completed_at = datetime.utcnow()
+        backup_log.completed_at = datetime.now(timezone.utc)
         backup_log.message = f"새 포스트 {posts_new}개, 업데이트 {posts_updated}개"
 
         db.commit()
@@ -200,12 +204,12 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
                     status="success"
                 )
             except Exception as e:
-                print(f"Failed to send email notification: {e}")
+                logger.error(f"Failed to send email notification: {e}")
 
     except Exception as e:
         backup_log.status = BackupStatus.FAILED
         backup_log.error_details = str(e)
-        backup_log.completed_at = datetime.utcnow()
+        backup_log.completed_at = datetime.now(timezone.utc)
         db.commit()
 
         # 실패 알림
@@ -236,6 +240,14 @@ async def trigger_backup(
     """수동 백업 트리거 - 서버 DB에 저장"""
     if not current_user.velog_username:
         raise HTTPException(status_code=400, detail="Velog 계정을 먼저 연동해주세요")
+
+    # 이미 진행 중인 백업이 있는지 확인
+    in_progress = db.query(BackupLog).filter(
+        BackupLog.user_id == current_user.id,
+        BackupLog.status == BackupStatus.IN_PROGRESS
+    ).first()
+    if in_progress:
+        raise HTTPException(status_code=409, detail="이미 백업이 진행 중입니다")
 
     background_tasks.add_task(perform_backup_task, current_user.id, request.force, db)
 
@@ -396,19 +408,18 @@ async def download_all_posts_as_zip(
                 zip_file.writestr(f"{folder_name}/index.md", processed_content)
 
                 # 이미지 다운로드 및 추가 (동기적으로 - ZIP 생성 시)
-                import httpx
-                for index, (full_match, alt_text, url) in enumerate(images, 1):
-                    try:
-                        with httpx.Client(follow_redirects=True) as client:
-                            resp = client.get(url, timeout=15.0)
+                with httpx.Client(follow_redirects=True, timeout=15.0) as img_client:
+                    for index, (full_match, alt_text, url) in enumerate(images, 1):
+                        try:
+                            resp = img_client.get(url)
                             if resp.status_code == 200:
                                 img_filename = ImageService.get_image_filename(url, index)
                                 zip_file.writestr(
                                     f"{folder_name}/images/{img_filename}",
                                     resp.content
                                 )
-                    except Exception:
-                        pass  # 다운로드 실패 시 건너뜀
+                        except Exception:
+                            pass  # 다운로드 실패 시 건너뜀
             else:
                 # 이미지 없는 경우: index.md만 저장
                 zip_file.writestr(f"{folder_name}/index.md", content)
@@ -416,7 +427,7 @@ async def download_all_posts_as_zip(
     zip_buffer.seek(0)
 
     username = current_user.velog_username or current_user.email.split('@')[0]
-    today = datetime.utcnow().strftime('%Y%m%d')
+    today = datetime.now(timezone.utc).strftime('%Y%m%d')
     zip_filename = f"velog_backup_{username}_{today}.zip"
 
     return StreamingResponse(

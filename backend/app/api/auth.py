@@ -1,8 +1,11 @@
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from jose import jwt, JWTError
+from typing import Optional
 import httpx
+import secrets
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -14,6 +17,7 @@ router = APIRouter()
 
 class GitHubCallbackRequest(BaseModel):
     code: str  # GitHub authorization code
+    state: Optional[str] = None  # OAuth state for CSRF protection
 
 
 class TokenResponse(BaseModel):
@@ -23,19 +27,34 @@ class TokenResponse(BaseModel):
 
 @router.get("/github/url")
 async def get_github_auth_url():
-    """GitHub OAuth 인증 URL 반환 (repo scope 포함)"""
+    """GitHub OAuth 인증 URL 반환 (repo scope 포함, state CSRF 보호)"""
+    # CSRF 방지를 위한 서명된 state 토큰 생성
+    state_payload = {
+        "nonce": secrets.token_urlsafe(16),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=10),
+    }
+    state_token = jwt.encode(state_payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
     auth_url = (
         f"https://github.com/login/oauth/authorize"
         f"?client_id={settings.GITHUB_CLIENT_ID}"
         f"&redirect_uri={settings.GITHUB_REDIRECT_URI}"
         f"&scope=user:email,repo"
+        f"&state={state_token}"
     )
-    return {"auth_url": auth_url}
+    return {"auth_url": auth_url, "state": state_token}
 
 
 @router.post("/github/callback", response_model=TokenResponse)
 async def github_callback(request: GitHubCallbackRequest, db: Session = Depends(get_db)):
     """GitHub OAuth 콜백 처리"""
+    # OAuth state 검증 (CSRF 보호)
+    if request.state:
+        try:
+            jwt.decode(request.state, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        except JWTError:
+            raise HTTPException(status_code=400, detail="유효하지 않거나 만료된 인증 요청입니다")
+
     async with httpx.AsyncClient() as client:
         token_response = await client.post(
             "https://github.com/login/oauth/access_token",

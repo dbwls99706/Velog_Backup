@@ -1,7 +1,7 @@
 import httpx
 import logging
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.core.config import settings
 
@@ -31,7 +31,7 @@ class EmailService:
             logger.warning("RESEND_API_KEY not configured, skipping email notification")
             return
 
-        now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
         if status == "success":
             subject = f"[Velog Backup] @{username} 백업 완료"
