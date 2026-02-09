@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Edit, X, Github, Mail, Bell, BellOff } from 'lucide-react'
+import { Edit, X, Github, Mail, Bell, BellOff, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { authAPI, settingsAPI } from '@/lib/api'
 import Header from '@/components/Header'
@@ -21,6 +21,9 @@ export default function SettingsPage() {
   // GitHub Sync
   const [githubRepo, setGithubRepo] = useState('')
   const [githubSyncEnabled, setGithubSyncEnabled] = useState(false)
+  const [savedGithubRepo, setSavedGithubRepo] = useState('')
+  const [repoWarning, setRepoWarning] = useState<{ exists: boolean; description?: string } | null>(null)
+  const [savingGithub, setSavingGithub] = useState(false)
 
   // Email Notification
   const [emailNotificationEnabled, setEmailNotificationEnabled] = useState(false)
@@ -28,7 +31,9 @@ export default function SettingsPage() {
   const loadSettings = useCallback(async () => {
     try {
       const settingsRes = await settingsAPI.get()
-      setGithubRepo(settingsRes.data.github_repo || '')
+      const repo = settingsRes.data.github_repo || ''
+      setGithubRepo(repo)
+      setSavedGithubRepo(repo)
       setGithubSyncEnabled(settingsRes.data.github_sync_enabled || false)
       setEmailNotificationEnabled(settingsRes.data.email_notification_enabled || false)
     } catch (error) {
@@ -67,16 +72,43 @@ export default function SettingsPage() {
     setIsEditingVelog(false)
   }
 
-  const handleSaveGithubSync = async () => {
+  const saveGithubSettings = async () => {
+    setSavingGithub(true)
     try {
       await settingsAPI.update({
         github_repo: githubRepo,
         github_sync_enabled: githubSyncEnabled,
       })
+      setSavedGithubRepo(githubRepo)
+      setRepoWarning(null)
       toast.success('GitHub 동기화 설정이 저장되었습니다')
     } catch (error: any) {
       toast.error(error.response?.data?.detail || '설정 저장에 실패했습니다')
+    } finally {
+      setSavingGithub(false)
     }
+  }
+
+  const handleSaveGithubSync = async () => {
+    const repoChanged = githubRepo.trim() && githubRepo.trim() !== savedGithubRepo
+    if (!repoChanged) {
+      await saveGithubSettings()
+      return
+    }
+
+    // 새 레포 이름이면 존재 여부 확인
+    setSavingGithub(true)
+    try {
+      const res = await settingsAPI.checkGitHubRepo(githubRepo.trim())
+      if (res.data.exists) {
+        setRepoWarning({ exists: true, description: res.data.description })
+        setSavingGithub(false)
+        return
+      }
+    } catch {
+      // 확인 실패 시 그냥 저장 진행
+    }
+    await saveGithubSettings()
   }
 
   const handleToggleEmailNotification = async () => {
@@ -187,6 +219,39 @@ export default function SettingsPage() {
               <p className="text-xs text-gray-500 mt-1">
                 존재하지 않으면 자동으로 생성됩니다
               </p>
+              {repoWarning?.exists && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <AlertTriangle size={16} className="text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-yellow-800">
+                        이미 존재하는 Repository입니다
+                      </p>
+                      {repoWarning.description && (
+                        <p className="text-xs text-yellow-700 mt-1">{repoWarning.description}</p>
+                      )}
+                      <p className="text-xs text-yellow-700 mt-1">
+                        동기화 시 README.md가 덮어씌워지고, posts/ 폴더에 백업 파일이 추가됩니다.
+                      </p>
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={saveGithubSettings}
+                          disabled={savingGithub}
+                          className="text-xs px-3 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors disabled:opacity-50"
+                        >
+                          그래도 사용
+                        </button>
+                        <button
+                          onClick={() => setRepoWarning(null)}
+                          className="text-xs px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -208,8 +273,8 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            <button onClick={handleSaveGithubSync} className="btn btn-primary">
-              설정 저장
+            <button onClick={handleSaveGithubSync} className="btn btn-primary" disabled={savingGithub}>
+              {savingGithub ? '확인 중...' : '설정 저장'}
             </button>
           </div>
         </div>
