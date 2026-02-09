@@ -6,7 +6,6 @@ import { Edit, X, Github, Mail, Bell, BellOff, AlertTriangle, Sun, Moon } from '
 import toast from 'react-hot-toast'
 import { authAPI, settingsAPI } from '@/lib/api'
 import Header from '@/components/Header'
-import LoadingSpinner from '@/components/LoadingSpinner'
 import { useUser } from '@/contexts/UserContext'
 import { useTheme } from '@/contexts/ThemeContext'
 
@@ -124,14 +123,12 @@ export default function SettingsPage() {
     }
   }
 
-  if (userLoading) return <LoadingSpinner />
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header user={user} />
 
       <main className="container mx-auto px-4 py-8 max-w-3xl">
-        {settingsLoading ? (
+        {(userLoading || settingsLoading) ? (
           <div className="flex justify-center py-16">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
