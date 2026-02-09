@@ -23,15 +23,16 @@ async def lifespan(app: FastAPI):
     """앱 라이프사이클 관리"""
     init_db()
     # V2 마이그레이션: 기존 사용자 이메일 알림 기본 활성화
+    db = SessionLocal()
     try:
-        db = SessionLocal()
         db.execute(
             text("UPDATE users SET email_notification_enabled = TRUE WHERE email_notification_enabled IS NULL")
         )
         db.commit()
-        db.close()
     except Exception as e:
         logger.warning(f"V2 migration (email default): {e}")
+    finally:
+        db.close()
     yield
 
 
