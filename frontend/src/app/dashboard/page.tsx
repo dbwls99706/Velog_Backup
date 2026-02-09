@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Database, FileText, Calendar, Play, FolderOpen, Download, Loader2, Settings } from 'lucide-react'
+import { Database, FileText, Calendar, Play, FolderOpen, Download, Loader2, Settings, X, Github } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { authAPI, backupAPI } from '@/lib/api'
+import { authAPI, backupAPI, settingsAPI } from '@/lib/api'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import Header from '@/components/Header'
@@ -17,10 +17,49 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isBackingUp, setIsBackingUp] = useState(false)
+  const [showSetupModal, setShowSetupModal] = useState(false)
+  const [setupRepo, setSetupRepo] = useState('')
+  const [setupSaving, setSetupSaving] = useState(false)
 
   useEffect(() => {
     loadData()
   }, [])
+
+  // 첫 로그인 감지: GitHub repo 미설정 시 팝업
+  useEffect(() => {
+    if (!user || !stats) return
+    const dismissed = sessionStorage.getItem('setup_dismissed')
+    if (!dismissed && stats.velog_connected && !user.github_repo) {
+      setShowSetupModal(true)
+    }
+  }, [user, stats])
+
+  const handleSetupSave = async () => {
+    if (!setupRepo.trim()) {
+      toast.error('Repository 이름을 입력해주세요')
+      return
+    }
+    setSetupSaving(true)
+    try {
+      await settingsAPI.update({
+        github_repo: setupRepo.trim(),
+        github_sync_enabled: true,
+      })
+      toast.success('GitHub 동기화가 활성화되었습니다!')
+      setShowSetupModal(false)
+      // user 상태 업데이트
+      setUser((prev: any) => ({ ...prev, github_repo: setupRepo.trim() }))
+    } catch {
+      toast.error('설정 저장에 실패했습니다')
+    } finally {
+      setSetupSaving(false)
+    }
+  }
+
+  const handleSetupDismiss = () => {
+    sessionStorage.setItem('setup_dismissed', 'true')
+    setShowSetupModal(false)
+  }
 
   useEffect(() => {
     const hasInProgressBackup = stats?.recent_logs?.some(
@@ -103,6 +142,64 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header user={user} />
+
+      {/* GitHub Repo 설정 팝업 */}
+      {showSetupModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative">
+            <button
+              onClick={handleSetupDismiss}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center">
+                <Github size={20} className="text-white" />
+              </div>
+              <h2 className="text-xl font-bold">GitHub 동기화 설정</h2>
+            </div>
+
+            <p className="text-gray-600 text-sm mb-4">
+              백업된 포스트를 GitHub Repository에 자동으로 커밋합니다.
+              Repository가 없으면 자동 생성됩니다.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Repository 이름
+              </label>
+              <input
+                type="text"
+                value={setupRepo}
+                onChange={(e) => setSetupRepo(e.target.value)}
+                placeholder="velog-backup"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                github.com/{user?.username || 'you'}/{setupRepo || 'velog-backup'}
+              </p>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={handleSetupSave}
+                disabled={setupSaving}
+                className="btn btn-primary flex-1"
+              >
+                {setupSaving ? '저장 중...' : '활성화'}
+              </button>
+              <button
+                onClick={handleSetupDismiss}
+                className="btn btn-secondary flex-1"
+              >
+                나중에
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="container mx-auto px-4 py-8 max-w-5xl">
         <div className="mb-8">

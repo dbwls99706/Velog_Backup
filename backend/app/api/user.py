@@ -21,8 +21,10 @@ class UserResponse(BaseModel):
     id: int
     email: str
     name: Optional[str]
+    username: Optional[str]
     picture: Optional[str]
     velog_username: Optional[str]
+    github_repo: Optional[str]
 
     class Config:
         from_attributes = True
@@ -66,8 +68,10 @@ async def get_current_user_info(current_user: User = Depends(get_current_active_
         "id": current_user.id,
         "email": current_user.email,
         "name": current_user.name,
+        "username": current_user.name,
         "picture": current_user.picture,
         "velog_username": current_user.velog_username,
+        "github_repo": current_user.github_repo,
     }
 
 
