@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 import asyncio
 import zipfile
@@ -169,6 +169,12 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
 
         db.commit()
 
+        # 변경된 포스트 slug 수집
+        changed_slugs = set()
+        for r in results:
+            if isinstance(r, dict) and r.get('status') in ('new', 'updated'):
+                changed_slugs.add(r['slug'])
+
         backup_log.status = BackupStatus.SUCCESS
         backup_log.posts_new = posts_new
         backup_log.posts_updated = posts_updated
@@ -179,13 +185,13 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
 
         db.commit()
 
-        # GitHub 동기화 (활성화된 경우)
-        if user.github_sync_enabled and user.github_repo and user.github_access_token:
+        # GitHub 동기화 (활성화된 경우, 변경분이 있을 때만)
+        if user.github_sync_enabled and user.github_repo and user.github_access_token and changed_slugs:
             try:
                 from app.services.github_sync import GitHubSyncService
                 github_sync = GitHubSyncService(user.github_access_token)
                 all_posts = db.query(PostCache).filter(PostCache.user_id == user_id).all()
-                gh_owner = await github_sync.sync_posts(user.github_repo, all_posts, user.velog_username)
+                gh_owner = await github_sync.sync_posts(user.github_repo, all_posts, user.velog_username, changed_slugs)
                 github_repo_url = f"https://github.com/{gh_owner}/{user.github_repo}"
                 backup_log.message += " | GitHub 동기화 완료"
                 db.commit()
@@ -235,6 +241,30 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
                 pass
 
 
+def recover_stuck_backups(db: Session, user_id: int = None):
+    """30분 이상 IN_PROGRESS 상태인 백업을 FAILED로 자동 전환"""
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=30)
+    query = db.query(BackupLog).filter(
+        BackupLog.status == BackupStatus.IN_PROGRESS,
+        BackupLog.started_at < cutoff
+    )
+    if user_id:
+        query = query.filter(BackupLog.user_id == user_id)
+
+    stuck_backups = query.all()
+    for backup in stuck_backups:
+        backup.status = BackupStatus.FAILED
+        backup.message = "시간 초과로 자동 실패 처리됨 (30분)"
+        backup.completed_at = datetime.now(timezone.utc)
+    if stuck_backups:
+        db.commit()
+        logger.info(f"Recovered {len(stuck_backups)} stuck backup(s)")
+    return len(stuck_backups)
+
+
+BACKUP_COOLDOWN_MINUTES = 5
+
+
 @router.post("/trigger")
 async def trigger_backup(
     request: BackupTriggerRequest,
@@ -246,6 +276,9 @@ async def trigger_backup(
     if not current_user.velog_username:
         raise HTTPException(status_code=400, detail="Velog 계정을 먼저 연동해주세요")
 
+    # 멈춘 백업 자동 복구
+    recover_stuck_backups(db, current_user.id)
+
     # 이미 진행 중인 백업이 있는지 확인
     in_progress = db.query(BackupLog).filter(
         BackupLog.user_id == current_user.id,
@@ -253,6 +286,16 @@ async def trigger_backup(
     ).first()
     if in_progress:
         raise HTTPException(status_code=409, detail="이미 백업이 진행 중입니다")
+
+    # 쿨다운: 마지막 백업 후 5분 이내 재시도 차단
+    cooldown_cutoff = datetime.now(timezone.utc) - timedelta(minutes=BACKUP_COOLDOWN_MINUTES)
+    recent_backup = db.query(BackupLog).filter(
+        BackupLog.user_id == current_user.id,
+        BackupLog.started_at > cooldown_cutoff,
+        BackupLog.status.in_([BackupStatus.SUCCESS, BackupStatus.FAILED])
+    ).first()
+    if recent_backup:
+        raise HTTPException(status_code=429, detail=f"백업은 {BACKUP_COOLDOWN_MINUTES}분에 한 번만 가능합니다")
 
     background_tasks.add_task(perform_backup_task, current_user.id, request.force, db)
 

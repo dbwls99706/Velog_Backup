@@ -22,15 +22,21 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """앱 라이프사이클 관리"""
     init_db()
-    # V2 마이그레이션: 기존 사용자 이메일 알림 기본 활성화
     db = SessionLocal()
     try:
+        # V2 마이그레이션: 기존 사용자 이메일 알림 기본 활성화
         db.execute(
             text("UPDATE users SET email_notification_enabled = TRUE WHERE email_notification_enabled IS NULL")
         )
         db.commit()
+
+        # 서버 시작 시 멈춘 백업 자동 복구
+        from app.api.backup import recover_stuck_backups
+        recovered = recover_stuck_backups(db)
+        if recovered:
+            logger.info(f"Startup: recovered {recovered} stuck backup(s)")
     except Exception as e:
-        logger.warning(f"V2 migration (email default): {e}")
+        logger.warning(f"Startup tasks: {e}")
     finally:
         db.close()
     yield
