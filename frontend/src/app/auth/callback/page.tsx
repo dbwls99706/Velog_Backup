@@ -46,10 +46,10 @@ function AuthCallbackContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900">
         <BookOpen className="text-primary-600 mb-4" size={48} />
         <h1 className="text-2xl font-bold mb-2">인증 실패</h1>
-        <p className="text-gray-600 mb-4">{error}</p>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
         <button
           onClick={() => window.location.href = '/'}
           className="btn btn-primary"
@@ -61,9 +61,9 @@ function AuthCallbackContent() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
-      <p className="text-gray-600">GitHub 로그인 처리 중...</p>
+      <p className="text-gray-600 dark:text-gray-400">GitHub 로그인 처리 중...</p>
     </div>
   )
 }
@@ -71,9 +71,9 @@ function AuthCallbackContent() {
 export default function AuthCallbackPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
-        <p className="text-gray-600">로딩 중...</p>
+        <p className="text-gray-600 dark:text-gray-400">로딩 중...</p>
       </div>
     }>
       <AuthCallbackContent />

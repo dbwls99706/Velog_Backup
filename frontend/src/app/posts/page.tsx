@@ -98,7 +98,7 @@ export default function PostsPage() {
   if (userLoading) return <LoadingSpinner />
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header user={user} />
 
       <main className="container mx-auto px-4 py-8 max-w-5xl">
@@ -109,13 +109,13 @@ export default function PostsPage() {
         ) : (<>
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">백업된 포스트</h1>
-          <p className="text-gray-600">총 {total}개의 포스트가 서버에 저장되어 있습니다</p>
+          <p className="text-gray-600 dark:text-gray-400">총 {total}개의 포스트가 서버에 저장되어 있습니다</p>
         </div>
 
         {posts.length === 0 ? (
           <div className="card text-center py-12">
             <FileText className="mx-auto text-gray-400 mb-4" size={48} />
-            <p className="text-gray-600">백업된 포스트가 없습니다</p>
+            <p className="text-gray-600 dark:text-gray-400">백업된 포스트가 없습니다</p>
             <Link href="/dashboard" className="btn btn-primary mt-4 inline-block">
               백업 시작하기
             </Link>
@@ -134,7 +134,7 @@ export default function PostsPage() {
                         {post.title}
                       </Link>
 
-                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
                         {post.velog_published_at && (
                           <span className="flex items-center gap-1">
                             <Calendar size={14} />
@@ -154,7 +154,7 @@ export default function PostsPage() {
                           {parseTags(post.tags).map((tag, index) => (
                             <span
                               key={index}
-                              className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded"
+                              className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs rounded"
                             >
                               {tag}
                             </span>
@@ -193,7 +193,7 @@ export default function PostsPage() {
                 >
                   이전
                 </button>
-                <span className="px-4 py-2 text-gray-600">
+                <span className="px-4 py-2 text-gray-600 dark:text-gray-400">
                   {page} / {totalPages}
                 </span>
                 <button

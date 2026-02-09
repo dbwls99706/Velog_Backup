@@ -139,34 +139,34 @@ export default function DashboardPage() {
   if (userLoading) return <LoadingSpinner />
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header user={user} />
 
       {/* GitHub Repo 설정 팝업 */}
       {showSetupModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full p-6 relative">
             <button
               onClick={handleSetupDismiss}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
               <X size={20} />
             </button>
 
             <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 bg-gray-900 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-gray-900 dark:bg-gray-600 rounded-full flex items-center justify-center">
                 <Github size={20} className="text-white" />
               </div>
               <h2 className="text-xl font-bold">GitHub 동기화 설정</h2>
             </div>
 
-            <p className="text-gray-600 text-sm mb-4">
+            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
               백업된 포스트를 GitHub Repository에 자동으로 커밋합니다.
               Repository가 없으면 자동 생성됩니다.
             </p>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Repository 이름
               </label>
               <input
@@ -174,9 +174,9 @@ export default function DashboardPage() {
                 value={setupRepo}
                 onChange={(e) => setSetupRepo(e.target.value)}
                 placeholder="velog-backup"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                className="input"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 github.com/{user?.username || 'you'}/{setupRepo || 'velog-backup'}
               </p>
             </div>
@@ -208,16 +208,16 @@ export default function DashboardPage() {
         ) : (<>
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">대시보드</h1>
-          <p className="text-gray-600">백업 현황을 확인하고 관리하세요</p>
+          <p className="text-gray-600 dark:text-gray-400">백업 현황을 확인하고 관리하세요</p>
         </div>
 
         {/* Velog 미연동 안내 */}
         {!stats?.velog_connected && (
-          <div className="card mb-6 border-yellow-200 bg-yellow-50">
+          <div className="card mb-6 border-yellow-200 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-800">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-yellow-800">Velog 계정 연동 필요</h2>
-                <p className="text-sm text-yellow-700 mt-1">
+                <h2 className="text-lg font-bold text-yellow-800 dark:text-yellow-400">Velog 계정 연동 필요</h2>
+                <p className="text-sm text-yellow-700 dark:text-yellow-500 mt-1">
                   백업을 시작하려면 먼저 설정에서 Velog 계정을 연동해주세요
                 </p>
               </div>
@@ -234,7 +234,7 @@ export default function DashboardPage() {
           <div className="card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">총 백업 포스트</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">총 백업 포스트</p>
                 <p className="text-3xl font-bold mt-1">{stats?.total_posts || 0}</p>
               </div>
               <FileText className="text-primary-600" size={40} />
@@ -244,7 +244,7 @@ export default function DashboardPage() {
           <div className="card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">마지막 백업</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">마지막 백업</p>
                 <p className="text-lg font-semibold mt-1">
                   {stats?.last_backup
                     ? format(new Date(stats.last_backup), 'MM/dd HH:mm', { locale: ko })
@@ -258,7 +258,7 @@ export default function DashboardPage() {
           <div className="card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">저장소</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">저장소</p>
                 <p className="text-lg font-semibold mt-1">
                   <span className="text-primary-600">서버 DB</span>
                 </p>
@@ -273,7 +273,7 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xl font-bold">백업 실행</h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 Velog 포스트를 이미지 포함하여 서버에 백업합니다
               </p>
             </div>
@@ -294,7 +294,7 @@ export default function DashboardPage() {
             <div className="flex justify-between items-center">
               <div>
                 <h2 className="text-xl font-bold">백업된 포스트</h2>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   {stats?.total_posts}개의 포스트가 서버에 저장되어 있습니다
                 </p>
               </div>
@@ -321,7 +321,7 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold mb-4">최근 백업 로그</h2>
             <div className="space-y-3">
               {stats.recent_logs.map((log: any) => (
-                <div key={log.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <div key={log.id} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="flex items-center space-x-2">
                     {log.status === 'in_progress' && (
                       <Loader2 className="animate-spin text-blue-600" size={16} />
@@ -329,17 +329,17 @@ export default function DashboardPage() {
                     <div>
                       <span className={`px-2 py-1 rounded text-xs font-semibold ${
                         log.status === 'success'
-                          ? 'bg-gray-200 text-gray-800'
+                          ? 'bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200'
                           : log.status === 'in_progress'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-red-100 text-red-800'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
                       }`}>
                         {log.status === 'in_progress' ? '진행 중' : log.status}
                       </span>
                       <p className="text-sm mt-1">{log.message || '백업 진행 중...'}</p>
                     </div>
                   </div>
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
                     {format(new Date(log.started_at), 'MM/dd HH:mm')}
                   </span>
                 </div>
