@@ -55,7 +55,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (isPublicPath) {
-      setIsLoading(false)
       return
     }
     refreshUser()
