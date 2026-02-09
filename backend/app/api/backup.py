@@ -199,8 +199,8 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
                 backup_log.message += f" | GitHub 동기화 실패: {str(e)[:100]}"
                 db.commit()
 
-        # 이메일 알림 (활성화된 경우)
-        if user.email_notification_enabled:
+        # 이메일 알림 (변경분이 있거나 실패가 있을 때만)
+        if user.email_notification_enabled and (posts_new > 0 or posts_updated > 0 or posts_failed > 0):
             try:
                 from app.services.email import EmailService
                 EmailService.send_backup_notification(
