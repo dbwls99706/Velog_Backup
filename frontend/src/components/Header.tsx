@@ -20,6 +20,7 @@ export default function Header({ user }: HeaderProps) {
 
   const handleLogout = () => {
     localStorage.removeItem('access_token')
+    sessionStorage.removeItem('setup_dismissed')
     router.push('/')
   }
 
