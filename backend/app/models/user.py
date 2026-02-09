@@ -10,6 +10,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     github_id = Column(String, unique=True, index=True, nullable=True)
+    github_login = Column(String, nullable=True)
     name = Column(String, nullable=True)
     picture = Column(String, nullable=True)
     velog_username = Column(String, index=True, nullable=True)

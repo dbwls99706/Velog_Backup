@@ -1,6 +1,9 @@
 -- Velog Backup V2 Migration Script
 -- 기존 users 테이블에 새 컬럼 추가 (이미 있으면 무시)
 
+-- GitHub 사용자 로그인 ID
+ALTER TABLE users ADD COLUMN IF NOT EXISTS github_login VARCHAR;
+
 -- GitHub API 토큰 (repo 동기화용)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS github_access_token TEXT;
 
