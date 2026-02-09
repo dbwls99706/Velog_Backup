@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Calendar, Tag, Download, Trash2, Copy, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -30,19 +30,7 @@ export default function PostDetailPage() {
   const [postLoading, setPostLoading] = useState(true)
   const [copied, setCopied] = useState(false)
 
-  useEffect(() => {
-    if (!userLoading && !user) {
-      router.push('/')
-    }
-  }, [user, userLoading])
-
-  useEffect(() => {
-    if (params.id && user) {
-      loadPost(Number(params.id))
-    }
-  }, [params.id, user])
-
-  const loadPost = async (postId: number) => {
+  const loadPost = useCallback(async (postId: number) => {
     try {
       const response = await postsAPI.getOne(postId)
       setPost(response.data)
@@ -52,7 +40,19 @@ export default function PostDetailPage() {
     } finally {
       setPostLoading(false)
     }
-  }
+  }, [router])
+
+  useEffect(() => {
+    if (!userLoading && !user) {
+      router.push('/')
+    }
+  }, [user, userLoading, router])
+
+  useEffect(() => {
+    if (params.id && user) {
+      loadPost(Number(params.id))
+    }
+  }, [params.id, user, loadPost])
 
   const handleDelete = async () => {
     if (!post) return

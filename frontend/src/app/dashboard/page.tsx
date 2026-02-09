@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Database, FileText, Calendar, Play, FolderOpen, Download, Loader2, Settings, X, Github } from 'lucide-react'
@@ -22,13 +22,24 @@ export default function DashboardPage() {
   const [setupRepo, setSetupRepo] = useState('')
   const [setupSaving, setSetupSaving] = useState(false)
 
+  const loadStats = useCallback(async () => {
+    try {
+      const statsRes = await backupAPI.getStats()
+      setStats(statsRes.data)
+    } catch (error) {
+      toast.error('데이터를 불러오는데 실패했습니다')
+    } finally {
+      setStatsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (!userLoading && !user) {
       router.push('/')
       return
     }
     if (user) loadStats()
-  }, [user, userLoading])
+  }, [user, userLoading, router, loadStats])
 
   // 첫 로그인 감지: GitHub repo 미설정 시 팝업
   useEffect(() => {
@@ -77,18 +88,7 @@ export default function DashboardPage() {
     }, 3000)
 
     return () => clearInterval(interval)
-  }, [stats])
-
-  const loadStats = async () => {
-    try {
-      const statsRes = await backupAPI.getStats()
-      setStats(statsRes.data)
-    } catch (error) {
-      toast.error('데이터를 불러오는데 실패했습니다')
-    } finally {
-      setStatsLoading(false)
-    }
-  }
+  }, [stats, loadStats])
 
   const handleBackup = async () => {
     setIsBackingUp(true)
