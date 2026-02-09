@@ -20,7 +20,7 @@ class User(Base):
     github_sync_enabled = Column(Boolean, default=False)
 
     # Notification
-    email_notification_enabled = Column(Boolean, default=False)
+    email_notification_enabled = Column(Boolean, default=True)
 
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
