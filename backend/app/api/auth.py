@@ -115,7 +115,8 @@ async def github_callback(request: GitHubCallbackRequest, db: Session = Depends(
             )
             db.add(user)
 
-    # GitHub access token 저장 (repo sync에 사용)
+    # GitHub login, access token 저장
+    user.github_login = github_user.get("login")
     user.github_access_token = github_access_token
 
     db.commit()
