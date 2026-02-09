@@ -20,7 +20,7 @@ class EmailService:
     ) -> str:
         """관련 링크 박스 HTML 생성"""
         velog_url = f"https://velog.io/@{username}"
-        dashboard_url = settings.FRONTEND_URL or "https://velog-backup.vercel.app"
+        dashboard_url = f"{settings.FRONTEND_URL}/dashboard" if settings.FRONTEND_URL else "https://velog-backup.vercel.app/dashboard"
 
         link_style = (
             "display: inline-block; padding: 8px 16px; margin: 4px; "
