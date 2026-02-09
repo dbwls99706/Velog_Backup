@@ -28,8 +28,7 @@ def get_db():
 
 def init_db():
     """데이터베이스 초기화"""
-    # 모든 모델 import
-    from app.models import user, integration, post, backup
+    from app.models import user, post, backup
 
     # 테이블 생성
     Base.metadata.create_all(bind=engine)

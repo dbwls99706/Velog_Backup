@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import Link from 'next/link'
-import { BookOpen, ArrowLeft, Calendar, Tag, Download, Trash2, Copy, Check } from 'lucide-react'
+import { Calendar, Tag, Download, Trash2, Copy, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { postsAPI } from '@/lib/api'
+import { authAPI, postsAPI } from '@/lib/api'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+import Header from '@/components/Header'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 interface Post {
   id: number
@@ -23,9 +24,16 @@ interface Post {
 export default function PostDetailPage() {
   const router = useRouter()
   const params = useParams()
+  const [user, setUser] = useState<any>(null)
   const [post, setPost] = useState<Post | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    authAPI.getCurrentUser()
+      .then(res => setUser(res.data))
+      .catch(() => router.push('/'))
+  }, [])
 
   useEffect(() => {
     if (params.id) {
@@ -97,13 +105,7 @@ export default function PostDetailPage() {
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    )
-  }
+  if (isLoading) return <LoadingSpinner />
 
   if (!post) {
     return (
@@ -115,23 +117,8 @@ export default function PostDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <BookOpen className="text-primary-600" size={32} />
-              <span className="text-xl font-bold">Velog Backup</span>
-            </div>
-            <Link href="/posts" className="btn btn-secondary">
-              <ArrowLeft size={16} className="inline mr-1" />
-              목록으로
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header user={user} />
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Post Header */}
         <div className="card mb-6">

@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { BookOpen, ArrowLeft, FileText, Calendar, Tag, Trash2, Download } from 'lucide-react'
+import { FileText, Calendar, Tag, Trash2, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { postsAPI } from '@/lib/api'
+import { authAPI, postsAPI } from '@/lib/api'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+import Header from '@/components/Header'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 interface Post {
   id: number
@@ -22,11 +24,18 @@ interface Post {
 
 export default function PostsPage() {
   const router = useRouter()
+  const [user, setUser] = useState<any>(null)
   const [posts, setPosts] = useState<Post[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(true)
   const limit = 20
+
+  useEffect(() => {
+    authAPI.getCurrentUser()
+      .then(res => setUser(res.data))
+      .catch(() => router.push('/'))
+  }, [])
 
   useEffect(() => {
     loadPosts()
@@ -85,33 +94,12 @@ export default function PostsPage() {
 
   const totalPages = Math.ceil(total / limit)
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    )
-  }
+  if (isLoading) return <LoadingSpinner />
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <BookOpen className="text-primary-600" size={32} />
-              <span className="text-xl font-bold">Velog Backup</span>
-            </div>
-            <Link href="/dashboard" className="btn btn-secondary">
-              <ArrowLeft size={16} className="inline mr-1" />
-              대시보드
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header user={user} />
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8 max-w-5xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">백업된 포스트</h1>
@@ -122,7 +110,7 @@ export default function PostsPage() {
           <div className="card text-center py-12">
             <FileText className="mx-auto text-gray-400 mb-4" size={48} />
             <p className="text-gray-600">백업된 포스트가 없습니다</p>
-            <Link href="/dashboard" className="btn btn-primary mt-4">
+            <Link href="/dashboard" className="btn btn-primary mt-4 inline-block">
               백업 시작하기
             </Link>
           </div>
@@ -190,7 +178,6 @@ export default function PostsPage() {
               ))}
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex justify-center items-center gap-2 mt-8">
                 <button

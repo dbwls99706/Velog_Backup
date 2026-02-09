@@ -3,26 +3,25 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { BookOpen, LogOut, Database, FileText, Calendar, Play, FolderOpen, Download, Edit, X, Loader2 } from 'lucide-react'
+import { Database, FileText, Calendar, Play, FolderOpen, Download, Loader2, Settings } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { authAPI, backupAPI } from '@/lib/api'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+import Header from '@/components/Header'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [stats, setStats] = useState<any>(null)
-  const [velogUsername, setVelogUsername] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isBackingUp, setIsBackingUp] = useState(false)
-  const [isEditingVelog, setIsEditingVelog] = useState(false)
 
   useEffect(() => {
     loadData()
   }, [])
 
-  // 백업 상태 폴링 (진행 중인 백업이 있을 때)
   useEffect(() => {
     const hasInProgressBackup = stats?.recent_logs?.some(
       (log: any) => log.status === 'in_progress'
@@ -30,7 +29,6 @@ export default function DashboardPage() {
 
     if (!hasInProgressBackup) return
 
-    // 3초마다 상태 확인
     const interval = setInterval(() => {
       loadData()
     }, 3000)
@@ -46,38 +44,12 @@ export default function DashboardPage() {
       ])
       setUser(userRes.data)
       setStats(statsRes.data)
-      setVelogUsername(userRes.data.velog_username || '')
     } catch (error) {
       toast.error('데이터를 불러오는데 실패했습니다')
       router.push('/')
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const handleLogout = () => {
-    localStorage.removeItem('access_token')
-    router.push('/')
-  }
-
-  const handleVerifyVelog = async () => {
-    try {
-      const response = await authAPI.verifyVelog(velogUsername)
-      toast.success(response.data.message)
-      setIsEditingVelog(false)
-      loadData()
-    } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Velog 계정을 찾을 수 없습니다')
-    }
-  }
-
-  const handleEditVelog = () => {
-    setIsEditingVelog(true)
-  }
-
-  const handleCancelEditVelog = () => {
-    setVelogUsername(user?.velog_username || '')
-    setIsEditingVelog(false)
   }
 
   const handleBackup = async () => {
@@ -98,13 +70,11 @@ export default function DashboardPage() {
       toast.loading('ZIP 파일을 생성하는 중...')
       const response = await backupAPI.downloadZip()
 
-      // Blob을 다운로드
       const blob = new Blob([response.data], { type: 'application/zip' })
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
 
-      // 파일명 추출 (Content-Disposition 헤더에서)
       const contentDisposition = response.headers['content-disposition']
       let filename = 'velog_backup.zip'
       if (contentDisposition) {
@@ -128,39 +98,35 @@ export default function DashboardPage() {
     }
   }
 
-  if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-    </div>
-  }
+  if (isLoading) return <LoadingSpinner />
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <BookOpen className="text-primary-600" size={32} />
-              <span className="text-xl font-bold">Velog Backup</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">{user?.email}</span>
-              <button onClick={handleLogout} className="btn btn-secondary">
-                <LogOut size={16} className="inline mr-1" />
-                로그아웃
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Header user={user} />
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8 max-w-5xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">대시보드</h1>
           <p className="text-gray-600">백업 현황을 확인하고 관리하세요</p>
         </div>
+
+        {/* Velog 미연동 안내 */}
+        {!stats?.velog_connected && (
+          <div className="card mb-6 border-yellow-200 bg-yellow-50">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-yellow-800">Velog 계정 연동 필요</h2>
+                <p className="text-sm text-yellow-700 mt-1">
+                  백업을 시작하려면 먼저 설정에서 Velog 계정을 연동해주세요
+                </p>
+              </div>
+              <Link href="/settings" className="btn btn-primary flex items-center space-x-2">
+                <Settings size={16} />
+                <span>설정으로 이동</span>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
@@ -201,66 +167,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Velog Connection */}
-        <div className="card mb-6">
-          <h2 className="text-xl font-bold mb-4">Velog 계정 연동</h2>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              className="input flex-1"
-              placeholder="@username"
-              value={velogUsername}
-              onChange={(e) => setVelogUsername(e.target.value)}
-              disabled={!!user?.velog_username && !isEditingVelog}
-            />
-            {!user?.velog_username || isEditingVelog ? (
-              <>
-                <button
-                  onClick={handleVerifyVelog}
-                  className="btn btn-primary"
-                  disabled={!velogUsername.trim()}
-                >
-                  {user?.velog_username ? '저장' : '확인'}
-                </button>
-                {isEditingVelog && (
-                  <button
-                    onClick={handleCancelEditVelog}
-                    className="btn btn-secondary"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </>
-            ) : (
-              <button
-                onClick={handleEditVelog}
-                className="btn btn-secondary flex items-center space-x-1"
-              >
-                <Edit size={16} />
-                <span>수정</span>
-              </button>
-            )}
-          </div>
-          {user?.velog_username && !isEditingVelog && (
-            <p className="text-sm text-primary-600 mt-2">
-              @{user.velog_username} 계정이 연동되었습니다
-            </p>
-          )}
-          {isEditingVelog && (
-            <p className="text-sm text-red-600 font-semibold mt-2">
-              ⚠️ 주의: 계정을 변경하면 기존에 백업된 모든 포스트가 삭제됩니다!<br />
-              변경 후 다시 백업을 실행해주세요.
-            </p>
-          )}
-        </div>
-
         {/* Backup Action */}
         <div className="card mb-6">
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xl font-bold">백업 실행</h2>
               <p className="text-sm text-gray-600 mt-1">
-                Velog 포스트를 서버에 백업합니다 (무료)
+                Velog 포스트를 이미지 포함하여 서버에 백업합니다
               </p>
             </div>
             <button

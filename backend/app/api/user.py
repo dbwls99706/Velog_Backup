@@ -44,6 +44,21 @@ class VelogUsernameRequest(BaseModel):
         return v
 
 
+class UserSettingsResponse(BaseModel):
+    github_repo: Optional[str]
+    github_sync_enabled: bool
+    email_notification_enabled: bool
+
+    class Config:
+        from_attributes = True
+
+
+class UserSettingsUpdate(BaseModel):
+    github_repo: Optional[str] = None
+    github_sync_enabled: Optional[bool] = None
+    email_notification_enabled: Optional[bool] = None
+
+
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
     """현재 로그인한 사용자 정보"""
@@ -56,6 +71,42 @@ async def get_current_user_info(current_user: User = Depends(get_current_active_
     }
 
 
+@router.get("/settings", response_model=UserSettingsResponse)
+async def get_user_settings(current_user: User = Depends(get_current_active_user)):
+    """사용자 설정 조회"""
+    return {
+        "github_repo": current_user.github_repo,
+        "github_sync_enabled": current_user.github_sync_enabled or False,
+        "email_notification_enabled": current_user.email_notification_enabled or False,
+    }
+
+
+@router.put("/settings", response_model=UserSettingsResponse)
+async def update_user_settings(
+    settings: UserSettingsUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """사용자 설정 업데이트"""
+    if settings.github_repo is not None:
+        current_user.github_repo = settings.github_repo.strip() or None
+
+    if settings.github_sync_enabled is not None:
+        current_user.github_sync_enabled = settings.github_sync_enabled
+
+    if settings.email_notification_enabled is not None:
+        current_user.email_notification_enabled = settings.email_notification_enabled
+
+    db.commit()
+    db.refresh(current_user)
+
+    return {
+        "github_repo": current_user.github_repo,
+        "github_sync_enabled": current_user.github_sync_enabled or False,
+        "email_notification_enabled": current_user.email_notification_enabled or False,
+    }
+
+
 @router.post("/velog/verify")
 async def verify_velog(
     request: VelogUsernameRequest,
@@ -63,10 +114,8 @@ async def verify_velog(
     db: Session = Depends(get_db)
 ):
     """Velog 사용자명 확인 및 저장 (수정 가능)"""
-    # @ 제거
     username = request.username.lstrip('@')
 
-    # Velog 사용자명 검증
     is_valid = await VelogService.verify_username(username)
 
     if not is_valid:
@@ -75,29 +124,23 @@ async def verify_velog(
             detail="Velog 사용자를 찾을 수 없습니다"
         )
 
-    # 이전 username과 동일한지 확인
     is_update = current_user.velog_username and current_user.velog_username != username
 
-    # username 변경 시 이전 포스트 및 백업 로그 삭제
     if is_update:
-        # 삭제할 포스트 개수 조회
         deleted_posts = db.query(PostCache).filter(
             PostCache.user_id == current_user.id
         ).count()
 
-        # 이전 포스트 모두 삭제
         db.query(PostCache).filter(
             PostCache.user_id == current_user.id
         ).delete()
 
-        # 백업 로그도 삭제
         db.query(BackupLog).filter(
             BackupLog.user_id == current_user.id
         ).delete()
 
         logger.info(f"User {current_user.id} changed username from '{current_user.velog_username}' to '{username}'. Deleted {deleted_posts} posts.")
 
-    # 사용자 정보 업데이트
     current_user.velog_username = username
     db.commit()
 

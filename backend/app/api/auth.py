@@ -23,12 +23,12 @@ class TokenResponse(BaseModel):
 
 @router.get("/github/url")
 async def get_github_auth_url():
-    """GitHub OAuth 인증 URL 반환"""
+    """GitHub OAuth 인증 URL 반환 (repo scope 포함)"""
     auth_url = (
         f"https://github.com/login/oauth/authorize"
         f"?client_id={settings.GITHUB_CLIENT_ID}"
         f"&redirect_uri={settings.GITHUB_REDIRECT_URI}"
-        f"&scope=user:email"
+        f"&scope=user:email,repo"
     )
     return {"auth_url": auth_url}
 
@@ -36,7 +36,6 @@ async def get_github_auth_url():
 @router.post("/github/callback", response_model=TokenResponse)
 async def github_callback(request: GitHubCallbackRequest, db: Session = Depends(get_db)):
     """GitHub OAuth 콜백 처리"""
-    # GitHub에서 access token 교환
     async with httpx.AsyncClient() as client:
         token_response = await client.post(
             "https://github.com/login/oauth/access_token",
@@ -76,7 +75,7 @@ async def github_callback(request: GitHubCallbackRequest, db: Session = Depends(
 
         github_user = user_response.json()
 
-        # 이메일 가져오기 (private email인 경우)
+        # 이메일 가져오기
         email = github_user.get("email")
         if not email:
             email_response = await client.get(
@@ -101,14 +100,12 @@ async def github_callback(request: GitHubCallbackRequest, db: Session = Depends(
     user = db.query(User).filter(User.github_id == github_id).first()
 
     if not user:
-        # 이메일로도 검색 (기존 사용자 연결)
         user = db.query(User).filter(User.email == email).first()
         if user:
             user.github_id = github_id
             user.name = github_user.get("name") or github_user.get("login")
             user.picture = github_user.get("avatar_url")
         else:
-            # 새 사용자 생성
             user = User(
                 email=email,
                 github_id=github_id,
@@ -118,10 +115,13 @@ async def github_callback(request: GitHubCallbackRequest, db: Session = Depends(
             )
             db.add(user)
 
-        db.commit()
-        db.refresh(user)
+    # GitHub access token 저장 (repo sync에 사용)
+    user.github_access_token = github_access_token
 
-    # JWT 토큰 생성 (user.id를 문자열로 변환)
+    db.commit()
+    db.refresh(user)
+
+    # JWT 토큰 생성
     access_token = create_access_token(data={"sub": str(user.id)})
 
     return {"access_token": access_token, "token_type": "bearer"}

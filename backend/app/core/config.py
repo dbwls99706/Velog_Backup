@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_ID: str
     GITHUB_CLIENT_SECRET: str
 
+    # SMTP (Email notifications)
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM_EMAIL: Optional[str] = None
+
     # CORS
     FRONTEND_URL: str = "https://velog-backup.vercel.app"
     CORS_ORIGINS: str = ""
