@@ -14,6 +14,41 @@ class EmailService:
     """Resend 기반 이메일 알림 서비스"""
 
     @staticmethod
+    def _build_links_html(
+        username: str,
+        github_repo_url: Optional[str] = None,
+    ) -> str:
+        """관련 링크 박스 HTML 생성"""
+        velog_url = f"https://velog.io/@{username}"
+        dashboard_url = settings.FRONTEND_URL or "https://velog-backup.vercel.app"
+
+        link_style = (
+            "display: inline-block; padding: 8px 16px; margin: 4px; "
+            "border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500;"
+        )
+
+        links = []
+
+        if github_repo_url:
+            links.append(
+                f'<a href="{github_repo_url}" style="{link_style} background: #24292f; color: white;">GitHub Repository</a>'
+            )
+
+        links.append(
+            f'<a href="{velog_url}" style="{link_style} background: #20c997; color: white;">Velog Blog</a>'
+        )
+
+        links.append(
+            f'<a href="{dashboard_url}" style="{link_style} background: #525252; color: white;">Dashboard</a>'
+        )
+
+        return f"""
+                    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 16px 0; text-align: center;">
+                        <p style="color: #6b7280; font-size: 12px; margin: 0 0 8px 0;">관련 링크</p>
+                        {''.join(links)}
+                    </div>"""
+
+    @staticmethod
     def send_backup_notification(
         to_email: str,
         username: str,
@@ -22,7 +57,8 @@ class EmailService:
         posts_failed: int,
         total_posts: int,
         status: str = "success",
-        error_message: Optional[str] = None
+        error_message: Optional[str] = None,
+        github_repo_url: Optional[str] = None,
     ):
         """백업 완료/실패 알림 이메일 발송 (Resend API)"""
         api_key = settings.RESEND_API_KEY
@@ -32,6 +68,7 @@ class EmailService:
             return
 
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        links_html = EmailService._build_links_html(username, github_repo_url)
 
         if status == "success":
             subject = f"[Velog Backup] @{username} 백업 완료"
@@ -63,6 +100,8 @@ class EmailService:
                         </tr>
                     </table>
 
+                    {links_html}
+
                     <p style="color: #9ca3af; font-size: 12px; margin-top: 16px;">{now}</p>
                 </div>
             </div>
@@ -83,6 +122,8 @@ class EmailService:
                     <p style="color: #6b7280;">@{username} 계정의 백업 중 오류가 발생했습니다.</p>
 
                     {error_html}
+
+                    {links_html}
 
                     <p style="color: #6b7280;">대시보드에서 다시 시도해주세요.</p>
                     <p style="color: #9ca3af; font-size: 12px; margin-top: 16px;">{now}</p>

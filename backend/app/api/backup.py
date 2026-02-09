@@ -178,12 +178,14 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
         db.commit()
 
         # GitHub 동기화 (활성화된 경우)
+        github_repo_url = None
         if user.github_sync_enabled and user.github_repo and user.github_access_token:
             try:
                 from app.services.github_sync import GitHubSyncService
                 github_sync = GitHubSyncService(user.github_access_token)
                 all_posts = db.query(PostCache).filter(PostCache.user_id == user_id).all()
-                await github_sync.sync_posts(user.github_repo, all_posts, user.velog_username)
+                gh_owner = await github_sync.sync_posts(user.github_repo, all_posts, user.velog_username)
+                github_repo_url = f"https://github.com/{gh_owner}/{user.github_repo}"
                 backup_log.message += " | GitHub 동기화 완료"
                 db.commit()
             except Exception as e:
@@ -201,7 +203,8 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
                     posts_updated=posts_updated,
                     posts_failed=posts_failed,
                     total_posts=len(posts),
-                    status="success"
+                    status="success",
+                    github_repo_url=github_repo_url,
                 )
             except Exception as e:
                 logger.error(f"Failed to send email notification: {e}")

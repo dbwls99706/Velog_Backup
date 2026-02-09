@@ -46,7 +46,7 @@ class GitHubSyncService:
                 json={
                     "name": repo_name,
                     "description": "Velog Backup - 자동 백업된 블로그 포스트",
-                    "private": False,
+                    "private": True,
                     "auto_init": True,
                 }
             )
@@ -126,8 +126,8 @@ class GitHubSyncService:
         )
         resp.raise_for_status()
 
-    async def sync_posts(self, repo_name: str, posts: List, velog_username: str):
-        """모든 포스트를 GitHub Repository에 단일 커밋으로 동기화"""
+    async def sync_posts(self, repo_name: str, posts: List, velog_username: str) -> str:
+        """모든 포스트를 GitHub Repository에 단일 커밋으로 동기화. GitHub 사용자명을 반환."""
         owner = await self._get_authenticated_user()
         await self._ensure_repo_exists(repo_name, owner)
 
@@ -222,6 +222,8 @@ class GitHubSyncService:
             await self._update_ref(client, owner, repo_name, new_commit_sha)
 
         logger.info(f"GitHub sync complete: {synced}/{len(posts)} posts in single commit to {owner}/{repo_name}")
+
+        return owner
 
     def _generate_readme(self, posts: List, velog_username: str, synced: int) -> str:
         """README.md 내용 생성"""
