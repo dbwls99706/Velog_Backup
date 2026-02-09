@@ -90,13 +90,18 @@ export default function SettingsPage() {
     }
   }
 
-  if (userLoading || settingsLoading) return <LoadingSpinner />
+  if (userLoading) return <LoadingSpinner />
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header user={user} />
 
       <main className="container mx-auto px-4 py-8 max-w-3xl">
+        {settingsLoading ? (
+          <div className="flex justify-center py-16">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          </div>
+        ) : (<>
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">설정</h1>
           <p className="text-gray-600">백업 서비스 설정을 관리하세요</p>
@@ -247,6 +252,7 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
+        </>)}
       </main>
     </div>
   )

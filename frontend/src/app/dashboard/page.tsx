@@ -136,7 +136,7 @@ export default function DashboardPage() {
     }
   }
 
-  if (userLoading || statsLoading) return <LoadingSpinner />
+  if (userLoading) return <LoadingSpinner />
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -201,6 +201,11 @@ export default function DashboardPage() {
       )}
 
       <main className="container mx-auto px-4 py-8 max-w-5xl">
+        {statsLoading ? (
+          <div className="flex justify-center py-16">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          </div>
+        ) : (<>
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">대시보드</h1>
           <p className="text-gray-600">백업 현황을 확인하고 관리하세요</p>
@@ -342,6 +347,7 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+        </>)}
       </main>
     </div>
   )
