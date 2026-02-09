@@ -25,7 +25,7 @@ class MarkdownService:
             try:
                 date_obj = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
                 frontmatter.append(f'date: {date_obj.strftime("%Y-%m-%d %H:%M:%S")}')
-            except:
+            except Exception:
                 pass
 
         if tags:
@@ -57,7 +57,7 @@ class MarkdownService:
                 date_obj = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
                 date_prefix = date_obj.strftime('%Y%m%d')
                 return f"{date_prefix}_{safe_slug}.md"
-            except:
+            except Exception:
                 pass
 
         return f"{safe_slug}.md"
