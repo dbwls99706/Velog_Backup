@@ -60,6 +60,20 @@ class UserSettingsUpdate(BaseModel):
     github_sync_enabled: Optional[bool] = None
     email_notification_enabled: Optional[bool] = None
 
+    @field_validator('github_repo')
+    @classmethod
+    def validate_github_repo(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            return v
+        if len(v) > 100:
+            raise ValueError('Repository 이름이 너무 깁니다')
+        if not re.match(r'^[a-zA-Z0-9._-]+$', v):
+            raise ValueError('Repository 이름은 영문, 숫자, ., -, _만 사용할 수 있습니다')
+        return v
+
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_active_user)):

@@ -33,7 +33,7 @@ class VelogService:
         }
         """
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             page = 0
             while True:
                 page += 1
@@ -88,7 +88,7 @@ class VelogService:
         }
         """
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 VelogService.GRAPHQL_ENDPOINT,
                 json={
@@ -114,8 +114,22 @@ class VelogService:
     @staticmethod
     async def verify_username(username: str) -> bool:
         """Velog 사용자명 유효성 확인"""
+        query = """
+        query GetPosts($username: String!) {
+            posts(username: $username, limit: 1) {
+                id
+            }
+        }
+        """
         try:
-            posts = await VelogService.get_user_posts(username)
-            return True  # 빈 블로그도 유효
-        except:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    VelogService.GRAPHQL_ENDPOINT,
+                    json={"query": query, "variables": {"username": username}},
+                    headers={"Content-Type": "application/json"}
+                )
+                response.raise_for_status()
+                data = response.json()
+                return "data" in data and "posts" in data["data"]
+        except Exception:
             return False

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -7,6 +7,9 @@ from app.core.database import Base
 class PostCache(Base):
     """Velog 포스트 백업 저장소 - 서버에 직접 저장"""
     __tablename__ = "post_cache"
+    __table_args__ = (
+        UniqueConstraint('user_id', 'slug', name='uq_post_cache_user_slug'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
