@@ -103,20 +103,20 @@ async def github_callback(request: GitHubCallbackRequest, db: Session = Depends(
         user = db.query(User).filter(User.email == email).first()
         if user:
             user.github_id = github_id
-            user.name = github_user.get("name") or github_user.get("login")
+            user.name = github_user.get("login")
             user.picture = github_user.get("avatar_url")
         else:
             user = User(
                 email=email,
                 github_id=github_id,
-                name=github_user.get("name") or github_user.get("login"),
+                name=github_user.get("login"),
                 picture=github_user.get("avatar_url"),
                 is_active=True
             )
             db.add(user)
 
-    # GitHub login, access token 저장
-    user.github_login = github_user.get("login")
+    # GitHub 정보 업데이트
+    user.name = github_user.get("login")
     user.github_access_token = github_access_token
 
     db.commit()
