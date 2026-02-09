@@ -1,7 +1,5 @@
-import smtplib
+import httpx
 import logging
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from typing import Optional
 from datetime import datetime
 
@@ -9,9 +7,11 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+RESEND_API_URL = "https://api.resend.com/emails"
+
 
 class EmailService:
-    """이메일 알림 서비스"""
+    """Resend 기반 이메일 알림 서비스"""
 
     @staticmethod
     def send_backup_notification(
@@ -24,15 +24,11 @@ class EmailService:
         status: str = "success",
         error_message: Optional[str] = None
     ):
-        """백업 완료/실패 알림 이메일 발송"""
-        smtp_host = getattr(settings, 'SMTP_HOST', None)
-        smtp_port = getattr(settings, 'SMTP_PORT', 587)
-        smtp_user = getattr(settings, 'SMTP_USER', None)
-        smtp_password = getattr(settings, 'SMTP_PASSWORD', None)
-        from_email = getattr(settings, 'SMTP_FROM_EMAIL', smtp_user)
+        """백업 완료/실패 알림 이메일 발송 (Resend API)"""
+        api_key = settings.RESEND_API_KEY
 
-        if not all([smtp_host, smtp_user, smtp_password]):
-            logger.warning("SMTP not configured, skipping email notification")
+        if not api_key:
+            logger.warning("RESEND_API_KEY not configured, skipping email notification")
             return
 
         now = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
@@ -73,6 +69,10 @@ class EmailService:
             """
         else:
             subject = f"[Velog Backup] @{username} 백업 실패"
+            error_html = ""
+            if error_message:
+                safe_error = error_message[:500].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                error_html = f'<div style="background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 4px; margin: 16px 0;"><pre style="margin: 0; white-space: pre-wrap; font-size: 13px; color: #991b1b;">{safe_error}</pre></div>'
             html = f"""
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background: #dc2626; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
@@ -82,7 +82,7 @@ class EmailService:
                     <h2 style="color: #dc2626; margin-top: 0;">백업에 실패했습니다</h2>
                     <p style="color: #6b7280;">@{username} 계정의 백업 중 오류가 발생했습니다.</p>
 
-                    {f'<div style="background: #fef2f2; border: 1px solid #fecaca; padding: 12px; border-radius: 4px; margin: 16px 0;"><pre style="margin: 0; white-space: pre-wrap; font-size: 13px; color: #991b1b;">{error_message[:500]}</pre></div>' if error_message else ''}
+                    {error_html}
 
                     <p style="color: #6b7280;">대시보드에서 다시 시도해주세요.</p>
                     <p style="color: #9ca3af; font-size: 12px; margin-top: 16px;">{now}</p>
@@ -90,17 +90,22 @@ class EmailService:
             </div>
             """
 
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = from_email
-        msg["To"] = to_email
-        msg.attach(MIMEText(html, "html"))
-
         try:
-            with smtplib.SMTP(smtp_host, smtp_port) as server:
-                server.starttls()
-                server.login(smtp_user, smtp_password)
-                server.sendmail(from_email, to_email, msg.as_string())
+            response = httpx.post(
+                RESEND_API_URL,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "from": "Velog Backup <onboarding@resend.dev>",
+                    "to": [to_email],
+                    "subject": subject,
+                    "html": html,
+                },
+                timeout=10,
+            )
+            response.raise_for_status()
             logger.info(f"Backup notification email sent to {to_email}")
         except Exception as e:
             logger.error(f"Failed to send email to {to_email}: {e}")

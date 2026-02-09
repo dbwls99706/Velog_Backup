@@ -100,11 +100,7 @@ GITHUB_CLIENT_SECRET=your-github-client-secret
 FRONTEND_URL=https://your-app.vercel.app
 
 # 선택 (이메일 알림)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
-SMTP_FROM_EMAIL=noreply@your-domain.com
+RESEND_API_KEY=re_your_resend_api_key
 ```
 
 ### Frontend (Vercel)
