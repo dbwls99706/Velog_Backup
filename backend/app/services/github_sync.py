@@ -126,8 +126,8 @@ class GitHubSyncService:
         )
         resp.raise_for_status()
 
-    async def sync_posts(self, repo_name: str, posts: List, velog_username: str) -> str:
-        """모든 포스트를 GitHub Repository에 단일 커밋으로 동기화. GitHub 사용자명을 반환."""
+    async def sync_posts(self, repo_name: str, posts: List, velog_username: str, changed_slugs: set = None) -> str:
+        """포스트를 GitHub Repository에 단일 커밋으로 동기화. changed_slugs가 주어지면 해당 포스트만 blob 생성."""
         owner = await self._get_authenticated_user()
         await self._ensure_repo_exists(repo_name, owner)
 
@@ -142,8 +142,11 @@ class GitHubSyncService:
         synced = 0
 
         async with httpx.AsyncClient() as client:
-            # 1. 모든 파일의 Blob을 생성
+            # 1. 변경된 포스트의 Blob만 생성 (changed_slugs가 None이면 전체)
             for post in posts:
+                # changed_slugs가 주어졌고, 이 포스트가 변경 대상이 아니면 스킵
+                if changed_slugs is not None and post.slug not in changed_slugs:
+                    continue
                 try:
                     folder_name = MarkdownService.generate_folder_name(post.title)
 

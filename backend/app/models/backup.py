@@ -19,7 +19,7 @@ class BackupLog(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Backup Info
-    status = Column(Enum(BackupStatus), default=BackupStatus.IN_PROGRESS)
+    status = Column(Enum(BackupStatus), default=BackupStatus.IN_PROGRESS, index=True)
     posts_total = Column(Integer, default=0)
     posts_new = Column(Integer, default=0)
     posts_updated = Column(Integer, default=0)
