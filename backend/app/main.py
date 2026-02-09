@@ -1,7 +1,9 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+from sqlalchemy import text
 import logging
 
 from app.core.config import settings
@@ -15,10 +17,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """앱 라이프사이클 관리"""
+    init_db()
+    # V2 마이그레이션: 기존 사용자 이메일 알림 기본 활성화
+    try:
+        db = SessionLocal()
+        db.execute(
+            text("UPDATE users SET email_notification_enabled = TRUE WHERE email_notification_enabled IS NULL")
+        )
+        db.commit()
+        db.close()
+    except Exception as e:
+        logger.warning(f"V2 migration (email default): {e}")
+    yield
+
+
 # FastAPI 앱 생성
 app = FastAPI(
     title="Velog Backup API",
     version="2.0.0",
+    lifespan=lifespan,
     docs_url="/docs" if settings.ENVIRONMENT != "production" else None,
     redoc_url=None
 )
@@ -57,24 +78,6 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
 app.include_router(user.router, prefix=f"{settings.API_V1_STR}/user", tags=["user"])
 app.include_router(backup.router, prefix=f"{settings.API_V1_STR}/backup", tags=["backup"])
-
-
-@app.on_event("startup")
-async def startup_event():
-    """앱 시작 시 실행"""
-    init_db()
-    # V2 마이그레이션: 기존 사용자 이메일 알림 기본 활성화
-    try:
-        db = SessionLocal()
-        db.execute(
-            __import__('sqlalchemy').text(
-                "UPDATE users SET email_notification_enabled = TRUE WHERE email_notification_enabled = FALSE"
-            )
-        )
-        db.commit()
-        db.close()
-    except Exception as e:
-        logger.warning(f"V2 migration (email default): {e}")
 
 
 @app.get("/")

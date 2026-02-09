@@ -16,6 +16,7 @@ function AuthCallbackContent() {
     hasRun.current = true
 
     const code = searchParams.get('code')
+    const state = searchParams.get('state')
     const errorParam = searchParams.get('error')
 
     if (errorParam) {
@@ -28,12 +29,12 @@ function AuthCallbackContent() {
       return
     }
 
-    handleCallback(code)
+    handleCallback(code, state || undefined)
   }, [searchParams])
 
-  const handleCallback = async (code: string) => {
+  const handleCallback = async (code: string, state?: string) => {
     try {
-      const response = await authAPI.gitHubCallback(code)
+      const response = await authAPI.gitHubCallback(code, state)
       localStorage.setItem('access_token', response.data.access_token)
       toast.success('로그인 성공!')
       window.location.href = '/dashboard'
