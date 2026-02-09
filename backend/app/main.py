@@ -5,7 +5,7 @@ from pydantic import ValidationError
 import logging
 
 from app.core.config import settings
-from app.core.database import init_db
+from app.core.database import init_db, SessionLocal
 from app.api import auth, user, backup
 
 # 로깅 설정
@@ -63,6 +63,18 @@ app.include_router(backup.router, prefix=f"{settings.API_V1_STR}/backup", tags=[
 async def startup_event():
     """앱 시작 시 실행"""
     init_db()
+    # V2 마이그레이션: 기존 사용자 이메일 알림 기본 활성화
+    try:
+        db = SessionLocal()
+        db.execute(
+            __import__('sqlalchemy').text(
+                "UPDATE users SET email_notification_enabled = TRUE WHERE email_notification_enabled = FALSE"
+            )
+        )
+        db.commit()
+        db.close()
+    except Exception as e:
+        logger.warning(f"V2 migration (email default): {e}")
 
 
 @app.get("/")

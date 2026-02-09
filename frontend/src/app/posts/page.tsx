@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { FileText, Calendar, Tag, Trash2, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { authAPI, postsAPI } from '@/lib/api'
+import { postsAPI } from '@/lib/api'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import Header from '@/components/Header'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { useUser } from '@/contexts/UserContext'
 
 interface Post {
   id: number
@@ -24,22 +25,22 @@ interface Post {
 
 export default function PostsPage() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const { user, isLoading: userLoading } = useUser()
   const [posts, setPosts] = useState<Post[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [isLoading, setIsLoading] = useState(true)
+  const [postsLoading, setPostsLoading] = useState(true)
   const limit = 20
 
   useEffect(() => {
-    authAPI.getCurrentUser()
-      .then(res => setUser(res.data))
-      .catch(() => router.push('/'))
-  }, [])
+    if (!userLoading && !user) {
+      router.push('/')
+    }
+  }, [user, userLoading])
 
   useEffect(() => {
-    loadPosts()
-  }, [page])
+    if (user) loadPosts()
+  }, [page, user])
 
   const loadPosts = async () => {
     try {
@@ -50,7 +51,7 @@ export default function PostsPage() {
       toast.error('포스트를 불러오는데 실패했습니다')
       router.push('/dashboard')
     } finally {
-      setIsLoading(false)
+      setPostsLoading(false)
     }
   }
 
@@ -94,7 +95,7 @@ export default function PostsPage() {
 
   const totalPages = Math.ceil(total / limit)
 
-  if (isLoading) return <LoadingSpinner />
+  if (userLoading || postsLoading) return <LoadingSpinner />
 
   return (
     <div className="min-h-screen bg-gray-50">

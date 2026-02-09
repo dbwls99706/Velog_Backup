@@ -12,3 +12,6 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS github_sync_enabled BOOLEAN DEFAULT F
 
 -- 이메일 알림 활성화 여부
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notification_enabled BOOLEAN DEFAULT TRUE;
+
+-- 기존 사용자 이메일 알림 기본 활성화
+UPDATE users SET email_notification_enabled = TRUE WHERE email_notification_enabled = FALSE;
