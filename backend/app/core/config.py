@@ -5,7 +5,7 @@ from typing import Optional
 class Settings(BaseSettings):
     # App
     APP_NAME: str = "Velog Backup"
-    ENVIRONMENT: str = "production"
+    ENVIRONMENT: str = "development"
     API_V1_STR: str = "/api/v1"
 
     # Database (Supabase PostgreSQL)
