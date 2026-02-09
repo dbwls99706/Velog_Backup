@@ -106,21 +106,22 @@ export default function PostDetailPage() {
     }
   }
 
-  if (userLoading || postLoading) return <LoadingSpinner />
-
-  if (!post) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-600">포스트를 찾을 수 없습니다</p>
-      </div>
-    )
-  }
+  if (userLoading) return <LoadingSpinner />
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header user={user} />
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
+        {postLoading ? (
+          <div className="flex justify-center py-16">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          </div>
+        ) : !post ? (
+          <div className="flex justify-center py-16">
+            <p className="text-gray-600">포스트를 찾을 수 없습니다</p>
+          </div>
+        ) : (<>
         {/* Post Header */}
         <div className="card mb-6">
           <h1 className="text-3xl font-bold mb-4">{post.title}</h1>
@@ -180,6 +181,7 @@ export default function PostDetailPage() {
             <p className="text-gray-500">저장된 내용이 없습니다</p>
           )}
         </div>
+        </>)}
       </main>
     </div>
   )
