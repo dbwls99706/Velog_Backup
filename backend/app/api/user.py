@@ -5,6 +5,8 @@ from typing import Optional
 import re
 import logging
 
+import httpx
+
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.user import User
@@ -123,6 +125,50 @@ async def update_user_settings(
         "github_sync_enabled": current_user.github_sync_enabled or False,
         "email_notification_enabled": current_user.email_notification_enabled or False,
     }
+
+
+@router.get("/github/repo/check")
+async def check_github_repo(
+    name: str,
+    current_user: User = Depends(get_current_active_user),
+):
+    """GitHub Repository 존재 여부 확인"""
+    if not current_user.github_access_token:
+        raise HTTPException(status_code=400, detail="GitHub 연동이 필요합니다")
+
+    if not name.strip():
+        return {"exists": False}
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            owner_resp = await client.get(
+                "https://api.github.com/user",
+                headers={
+                    "Authorization": f"Bearer {current_user.github_access_token}",
+                    "Accept": "application/vnd.github.v3+json",
+                },
+            )
+            owner_resp.raise_for_status()
+            owner = owner_resp.json()["login"]
+
+            repo_resp = await client.get(
+                f"https://api.github.com/repos/{owner}/{name.strip()}",
+                headers={
+                    "Authorization": f"Bearer {current_user.github_access_token}",
+                    "Accept": "application/vnd.github.v3+json",
+                },
+            )
+            if repo_resp.status_code == 200:
+                repo_data = repo_resp.json()
+                return {
+                    "exists": True,
+                    "description": repo_data.get("description", ""),
+                    "private": repo_data.get("private", False),
+                }
+            return {"exists": False}
+    except Exception as e:
+        logger.warning(f"GitHub repo check failed: {e}")
+        return {"exists": False}
 
 
 @router.post("/velog/verify")

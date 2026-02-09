@@ -56,4 +56,5 @@ export const settingsAPI = {
     github_sync_enabled?: boolean;
     email_notification_enabled?: boolean;
   }) => api.put('/user/settings', data),
+  checkGitHubRepo: (name: string) => api.get(`/user/github/repo/check?name=${encodeURIComponent(name)}`),
 };
