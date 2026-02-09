@@ -48,3 +48,12 @@ export const postsAPI = {
   getOne: (postId: number) => api.get(`/backup/posts/${postId}`),
   delete: (postId: number) => api.delete(`/backup/posts/${postId}`),
 };
+
+export const settingsAPI = {
+  get: () => api.get('/user/settings'),
+  update: (data: {
+    github_repo?: string;
+    github_sync_enabled?: boolean;
+    email_notification_enabled?: boolean;
+  }) => api.put('/user/settings', data),
+};

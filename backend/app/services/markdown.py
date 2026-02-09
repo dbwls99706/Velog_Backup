@@ -50,10 +50,8 @@ class MarkdownService:
     @staticmethod
     def generate_filename(slug: str, published_at: Optional[str] = None) -> str:
         """백업 파일명 생성"""
-        # 안전한 파일명으로 변환
         safe_slug = MarkdownService._sanitize_filename(slug)
 
-        # 날짜 prefix 추가
         if published_at:
             try:
                 date_obj = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
@@ -65,20 +63,42 @@ class MarkdownService:
         return f"{safe_slug}.md"
 
     @staticmethod
+    def generate_folder_name(title: str) -> str:
+        """글 제목으로 폴더명 생성"""
+        safe_title = MarkdownService._sanitize_folder_name(title)
+        if not safe_title:
+            safe_title = "untitled"
+        return safe_title
+
+    @staticmethod
+    def _sanitize_folder_name(name: str) -> str:
+        """폴더명에서 사용 불가능한 문자 제거 (제목 기반)"""
+        invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
+        for char in invalid_chars:
+            name = name.replace(char, '')
+
+        # 앞뒤 공백 및 마침표 제거
+        name = name.strip().strip('.')
+
+        # 연속 공백 제거
+        name = re.sub(r'\s+', ' ', name)
+
+        # 최대 길이 제한
+        if len(name) > 100:
+            name = name[:100].rstrip()
+
+        return name
+
+    @staticmethod
     def _sanitize_filename(filename: str) -> str:
         """파일명에서 사용 불가능한 문자 제거"""
-        # 사용 불가능한 문자 제거
         invalid_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
         for char in invalid_chars:
             filename = filename.replace(char, '_')
 
-        # 공백을 하이픈으로
         filename = filename.replace(' ', '-')
-
-        # 연속된 하이픈 제거
         filename = re.sub(r'-+', '-', filename)
 
-        # 최대 길이 제한
         if len(filename) > 200:
             filename = filename[:200]
 
@@ -89,6 +109,5 @@ class MarkdownService:
         """YAML 문자열 이스케이프"""
         if not text:
             return ""
-        # 따옴표 이스케이프
         text = text.replace('"', '\\"')
         return text

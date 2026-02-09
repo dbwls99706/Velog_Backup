@@ -16,6 +16,7 @@ from app.models.post import PostCache
 from app.models.backup import BackupLog, BackupStatus
 from app.services.velog import VelogService
 from app.services.markdown import MarkdownService
+from app.services.image import ImageService
 
 router = APIRouter()
 
@@ -77,14 +78,12 @@ async def process_single_post(
     db: Session
 ):
     """단일 포스트 처리 (병렬 처리용)"""
-    async with semaphore:  # 동시 요청 수 제한
+    async with semaphore:
         try:
-            # 전체 포스트 내용 가져오기
             post_data = await velog.get_post_content(username, post_info['url_slug'])
             if not post_data:
                 return {'status': 'failed', 'slug': post_info['url_slug']}
 
-            # 변경 감지
             content_hash = velog.compute_content_hash(post_data['body'])
             existing_post = db.query(PostCache).filter(
                 PostCache.user_id == user_id,
@@ -94,7 +93,6 @@ async def process_single_post(
             if not force and existing_post and existing_post.content_hash == content_hash:
                 return {'status': 'skipped', 'slug': post_info['url_slug']}
 
-            # Markdown 변환
             markdown_content = MarkdownService.convert_to_markdown(
                 title=post_data['title'],
                 content=post_data['body'],
@@ -104,7 +102,6 @@ async def process_single_post(
                 url_slug=post_data.get('url_slug')
             )
 
-            # DB에 직접 저장 (개별 커밋 제거, 배치로 처리)
             if existing_post:
                 existing_post.content = markdown_content
                 existing_post.content_hash = content_hash
@@ -139,40 +136,33 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
     if not user or not user.velog_username:
         return
 
-    # 백업 로그 시작
     backup_log = BackupLog(user_id=user_id, status=BackupStatus.IN_PROGRESS)
     db.add(backup_log)
     db.commit()
     db.refresh(backup_log)
 
     try:
-        # Velog 포스트 가져오기
         velog = VelogService()
         posts = await velog.get_user_posts(user.velog_username)
 
         backup_log.posts_total = len(posts)
         db.commit()
 
-        # 병렬 처리 (동시 10개씩)
         semaphore = asyncio.Semaphore(10)
         tasks = [
             process_single_post(semaphore, velog, user.velog_username, post_info, user_id, force, db)
             for post_info in posts
         ]
 
-        # 모든 포스트를 병렬로 처리
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # 결과 집계
         posts_new = sum(1 for r in results if isinstance(r, dict) and r.get('status') == 'new')
         posts_updated = sum(1 for r in results if isinstance(r, dict) and r.get('status') == 'updated')
         posts_skipped = sum(1 for r in results if isinstance(r, dict) and r.get('status') == 'skipped')
         posts_failed = sum(1 for r in results if isinstance(r, dict) and r.get('status') == 'failed')
 
-        # 배치 커밋 (한 번에)
         db.commit()
 
-        # 백업 로그 완료
         backup_log.status = BackupStatus.SUCCESS
         backup_log.posts_new = posts_new
         backup_log.posts_updated = posts_updated
@@ -183,11 +173,57 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
 
         db.commit()
 
+        # GitHub 동기화 (활성화된 경우)
+        if user.github_sync_enabled and user.github_repo and user.github_access_token:
+            try:
+                from app.services.github_sync import GitHubSyncService
+                github_sync = GitHubSyncService(user.github_access_token)
+                all_posts = db.query(PostCache).filter(PostCache.user_id == user_id).all()
+                await github_sync.sync_posts(user.github_repo, all_posts, user.velog_username)
+                backup_log.message += " | GitHub 동기화 완료"
+                db.commit()
+            except Exception as e:
+                backup_log.message += f" | GitHub 동기화 실패: {str(e)[:100]}"
+                db.commit()
+
+        # 이메일 알림 (활성화된 경우)
+        if user.email_notification_enabled:
+            try:
+                from app.services.email import EmailService
+                EmailService.send_backup_notification(
+                    to_email=user.email,
+                    username=user.velog_username,
+                    posts_new=posts_new,
+                    posts_updated=posts_updated,
+                    posts_failed=posts_failed,
+                    total_posts=len(posts),
+                    status="success"
+                )
+            except Exception as e:
+                print(f"Failed to send email notification: {e}")
+
     except Exception as e:
         backup_log.status = BackupStatus.FAILED
         backup_log.error_details = str(e)
         backup_log.completed_at = datetime.utcnow()
         db.commit()
+
+        # 실패 알림
+        if user.email_notification_enabled:
+            try:
+                from app.services.email import EmailService
+                EmailService.send_backup_notification(
+                    to_email=user.email,
+                    username=user.velog_username,
+                    posts_new=0,
+                    posts_updated=0,
+                    posts_failed=0,
+                    total_posts=0,
+                    status="failed",
+                    error_message=str(e)
+                )
+            except Exception:
+                pass
 
 
 @router.post("/trigger")
@@ -201,7 +237,6 @@ async def trigger_backup(
     if not current_user.velog_username:
         raise HTTPException(status_code=400, detail="Velog 계정을 먼저 연동해주세요")
 
-    # 백그라운드 작업 추가
     background_tasks.add_task(perform_backup_task, current_user.id, request.force, db)
 
     return {"message": "백업이 시작되었습니다"}
@@ -253,7 +288,7 @@ async def get_backed_up_posts(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """백업된 포스트 목록 조회 (각 사용자는 자신의 포스트만 볼 수 있음)"""
+    """백업된 포스트 목록 조회"""
     offset = (page - 1) * limit
 
     total = db.query(PostCache).filter(PostCache.user_id == current_user.id).count()
@@ -276,10 +311,10 @@ async def get_backed_up_post(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """백업된 특정 포스트 조회 (자신의 포스트만 조회 가능)"""
+    """백업된 특정 포스트 조회"""
     post = db.query(PostCache).filter(
         PostCache.id == post_id,
-        PostCache.user_id == current_user.id  # 자신의 포스트만
+        PostCache.user_id == current_user.id
     ).first()
 
     if not post:
@@ -294,7 +329,7 @@ async def delete_backed_up_post(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """백업된 포스트 삭제 (자신의 포스트만 삭제 가능)"""
+    """백업된 포스트 삭제"""
     post = db.query(PostCache).filter(
         PostCache.id == post_id,
         PostCache.user_id == current_user.id
@@ -314,8 +349,7 @@ async def download_all_posts_as_zip(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """백업된 모든 포스트를 ZIP 파일로 다운로드 (자신의 포스트만)"""
-    # 사용자의 모든 포스트 조회
+    """백업된 모든 포스트를 ZIP 파일로 다운로드 (글 제목별 폴더 + 이미지 포함)"""
     posts = db.query(PostCache).filter(
         PostCache.user_id == current_user.id
     ).order_by(PostCache.velog_published_at.desc()).all()
@@ -323,29 +357,68 @@ async def download_all_posts_as_zip(
     if not posts or len(posts) == 0:
         raise HTTPException(status_code=404, detail="백업된 포스트가 없습니다")
 
-    # 메모리에 ZIP 파일 생성
     zip_buffer = io.BytesIO()
+
+    # 중복 폴더명 처리용
+    folder_names = {}
 
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for post in posts:
-            # 파일명 생성
-            filename = MarkdownService.generate_filename(
-                post.slug,
-                post.velog_published_at.isoformat() if post.velog_published_at else None
-            )
+            # 글 제목으로 폴더명 생성
+            folder_name = MarkdownService.generate_folder_name(post.title)
 
-            # ZIP에 파일 추가
-            zip_file.writestr(filename, post.content)
+            # 중복 제목 처리
+            if folder_name in folder_names:
+                folder_names[folder_name] += 1
+                folder_name = f"{folder_name} ({folder_names[folder_name]})"
+            else:
+                folder_names[folder_name] = 1
 
-    # ZIP 파일 포인터를 처음으로 이동
+            # 마크다운 콘텐츠에서 이미지 URL 추출 및 다운로드
+            content = post.content or ""
+            images = ImageService.extract_image_urls(content)
+
+            if images:
+                # 이미지가 있는 경우: 이미지 URL을 상대 경로로 치환
+                processed_content = content
+                for index, (full_match, alt_text, url) in enumerate(images, 1):
+                    filename = ImageService.get_image_filename(url, index)
+                    relative_path = f"./images/{filename}"
+
+                    if full_match.startswith('!['):
+                        new_ref = f"![{alt_text}]({relative_path})"
+                        processed_content = processed_content.replace(full_match, new_ref, 1)
+                    elif full_match.startswith('<img'):
+                        new_ref = full_match.replace(url, relative_path)
+                        processed_content = processed_content.replace(full_match, new_ref, 1)
+
+                # index.md 작성
+                zip_file.writestr(f"{folder_name}/index.md", processed_content)
+
+                # 이미지 다운로드 및 추가 (동기적으로 - ZIP 생성 시)
+                import httpx
+                for index, (full_match, alt_text, url) in enumerate(images, 1):
+                    try:
+                        with httpx.Client(follow_redirects=True) as client:
+                            resp = client.get(url, timeout=15.0)
+                            if resp.status_code == 200:
+                                img_filename = ImageService.get_image_filename(url, index)
+                                zip_file.writestr(
+                                    f"{folder_name}/images/{img_filename}",
+                                    resp.content
+                                )
+                    except Exception:
+                        pass  # 다운로드 실패 시 건너뜀
+            else:
+                # 이미지 없는 경우: index.md만 저장
+                zip_file.writestr(f"{folder_name}/index.md", content)
+
     zip_buffer.seek(0)
 
-    # 파일명 생성 (사용자명_백업_날짜.zip)
     username = current_user.velog_username or current_user.email.split('@')[0]
     today = datetime.utcnow().strftime('%Y%m%d')
     zip_filename = f"velog_backup_{username}_{today}.zip"
 
-    # StreamingResponse로 반환
     return StreamingResponse(
         zip_buffer,
         media_type="application/zip",

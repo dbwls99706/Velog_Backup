@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_ID: str
     GITHUB_CLIENT_SECRET: str
 
+    # Resend (Email notifications)
+    RESEND_API_KEY: Optional[str] = None
+
     # CORS
     FRONTEND_URL: str = "https://velog-backup.vercel.app"
     CORS_ORIGINS: str = ""
