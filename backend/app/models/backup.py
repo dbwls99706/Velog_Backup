@@ -16,7 +16,7 @@ class BackupLog(Base):
     __tablename__ = "backup_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # Backup Info
     status = Column(Enum(BackupStatus), default=BackupStatus.IN_PROGRESS)

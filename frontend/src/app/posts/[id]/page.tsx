@@ -109,7 +109,7 @@ export default function PostDetailPage() {
   if (userLoading) return <LoadingSpinner />
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header user={user} />
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
@@ -119,14 +119,14 @@ export default function PostDetailPage() {
           </div>
         ) : !post ? (
           <div className="flex justify-center py-16">
-            <p className="text-gray-600">포스트를 찾을 수 없습니다</p>
+            <p className="text-gray-600 dark:text-gray-400">포스트를 찾을 수 없습니다</p>
           </div>
         ) : (<>
         {/* Post Header */}
         <div className="card mb-6">
           <h1 className="text-3xl font-bold mb-4">{post.title}</h1>
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-4">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
             {post.velog_published_at && (
               <span className="flex items-center gap-1">
                 <Calendar size={14} />
@@ -146,7 +146,7 @@ export default function PostDetailPage() {
               {parseTags(post.tags).map((tag, index) => (
                 <span
                   key={index}
-                  className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded"
+                  className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs rounded"
                 >
                   {tag}
                 </span>
@@ -163,7 +163,7 @@ export default function PostDetailPage() {
               <Download size={16} />
               다운로드
             </button>
-            <button onClick={handleDelete} className="btn btn-secondary text-red-600 hover:bg-red-50 flex items-center gap-1">
+            <button onClick={handleDelete} className="btn btn-secondary text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 flex items-center gap-1">
               <Trash2 size={16} />
               삭제
             </button>
@@ -178,7 +178,7 @@ export default function PostDetailPage() {
               {post.content}
             </pre>
           ) : (
-            <p className="text-gray-500">저장된 내용이 없습니다</p>
+            <p className="text-gray-500 dark:text-gray-400">저장된 내용이 없습니다</p>
           )}
         </div>
         </>)}

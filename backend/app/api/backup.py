@@ -227,7 +227,8 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
                     posts_failed=0,
                     total_posts=0,
                     status="failed",
-                    error_message=str(e)
+                    error_message=str(e),
+                    github_repo_url=github_repo_url,
                 )
             except Exception:
                 pass
