@@ -5,18 +5,20 @@ import { useRouter } from 'next/navigation'
 import { BookOpen, Cloud, Shield, Zap, Github } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { authAPI } from '@/lib/api'
+import Header from '@/components/Header'
 
 export default function HomePage() {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(true)
+  const [status, setStatus] = useState<'checking' | 'redirecting' | 'ready'>('checking')
   const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
     if (token) {
+      setStatus('redirecting')
       router.push('/dashboard')
     } else {
-      setIsLoading(false)
+      setStatus('ready')
     }
   }, [router])
 
@@ -31,10 +33,23 @@ export default function HomePage() {
     }
   }
 
-  if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-    </div>
+  // 토큰 확인 전: 배경만 표시 (깜빡임 방지)
+  if (status === 'checking') {
+    return <div className="min-h-screen bg-gray-50 dark:bg-gray-900" />
+  }
+
+  // 로그인 상태 → Dashboard로 이동 중: Dashboard와 동일한 레이아웃
+  if (status === 'redirecting') {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <Header user={null} />
+        <main className="container mx-auto px-4 py-8 max-w-5xl">
+          <div className="flex justify-center py-16">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
