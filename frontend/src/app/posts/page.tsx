@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { FileText, Calendar, Tag, Trash2, Download } from 'lucide-react'
@@ -32,17 +32,7 @@ export default function PostsPage() {
   const [postsLoading, setPostsLoading] = useState(true)
   const limit = 20
 
-  useEffect(() => {
-    if (!userLoading && !user) {
-      router.push('/')
-    }
-  }, [user, userLoading])
-
-  useEffect(() => {
-    if (user) loadPosts()
-  }, [page, user])
-
-  const loadPosts = async () => {
+  const loadPosts = useCallback(async () => {
     try {
       const response = await postsAPI.getAll(page, limit)
       setPosts(response.data.posts)
@@ -53,7 +43,17 @@ export default function PostsPage() {
     } finally {
       setPostsLoading(false)
     }
-  }
+  }, [page, router])
+
+  useEffect(() => {
+    if (!userLoading && !user) {
+      router.push('/')
+    }
+  }, [user, userLoading, router])
+
+  useEffect(() => {
+    if (user) loadPosts()
+  }, [page, user, loadPosts])
 
   const handleDelete = async (postId: number, title: string) => {
     if (!confirm(`"${title}" 포스트를 삭제하시겠습니까?`)) return

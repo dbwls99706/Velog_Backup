@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Edit, X, Github, Mail, Bell, BellOff } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -25,18 +25,7 @@ export default function SettingsPage() {
   // Email Notification
   const [emailNotificationEnabled, setEmailNotificationEnabled] = useState(false)
 
-  useEffect(() => {
-    if (!userLoading && !user) {
-      router.push('/')
-      return
-    }
-    if (user) {
-      setVelogUsername(user.velog_username || '')
-      loadSettings()
-    }
-  }, [user, userLoading])
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
       const settingsRes = await settingsAPI.get()
       setGithubRepo(settingsRes.data.github_repo || '')
@@ -47,7 +36,18 @@ export default function SettingsPage() {
     } finally {
       setSettingsLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!userLoading && !user) {
+      router.push('/')
+      return
+    }
+    if (user) {
+      setVelogUsername(user.velog_username || '')
+      loadSettings()
+    }
+  }, [user, userLoading, router, loadSettings])
 
   const handleVerifyVelog = async () => {
     try {

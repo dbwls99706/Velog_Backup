@@ -59,7 +59,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       return
     }
     refreshUser()
-  }, [pathname])
+  }, [pathname, isPublicPath, refreshUser])
 
   return (
     <UserContext.Provider value={{ user, isLoading, refreshUser }}>
