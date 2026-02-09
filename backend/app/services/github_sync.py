@@ -134,8 +134,7 @@ class GitHubSyncService:
         # 최신 커밋 SHA 조회
         base_sha = await self._get_default_branch_sha(owner, repo_name)
         if not base_sha:
-            logger.error(f"Could not get base SHA for {owner}/{repo_name}")
-            return
+            raise RuntimeError(f"Could not get base SHA for {owner}/{repo_name}")
 
         # 중복 폴더명 처리
         folder_names = {}

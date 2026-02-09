@@ -145,6 +145,8 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
     db.commit()
     db.refresh(backup_log)
 
+    github_repo_url = None
+
     try:
         velog = VelogService()
         posts = await velog.get_user_posts(user.velog_username)
@@ -178,7 +180,6 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
         db.commit()
 
         # GitHub 동기화 (활성화된 경우)
-        github_repo_url = None
         if user.github_sync_enabled and user.github_repo and user.github_access_token:
             try:
                 from app.services.github_sync import GitHubSyncService
