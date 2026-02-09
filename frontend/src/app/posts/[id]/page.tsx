@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Calendar, Tag, Download, Trash2, Copy, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { authAPI, postsAPI } from '@/lib/api'
+import { postsAPI } from '@/lib/api'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import Header from '@/components/Header'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { useUser } from '@/contexts/UserContext'
 
 interface Post {
   id: number
@@ -24,22 +25,22 @@ interface Post {
 export default function PostDetailPage() {
   const router = useRouter()
   const params = useParams()
-  const [user, setUser] = useState<any>(null)
+  const { user, isLoading: userLoading } = useUser()
   const [post, setPost] = useState<Post | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [postLoading, setPostLoading] = useState(true)
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    authAPI.getCurrentUser()
-      .then(res => setUser(res.data))
-      .catch(() => router.push('/'))
-  }, [])
+    if (!userLoading && !user) {
+      router.push('/')
+    }
+  }, [user, userLoading])
 
   useEffect(() => {
-    if (params.id) {
+    if (params.id && user) {
       loadPost(Number(params.id))
     }
-  }, [params.id])
+  }, [params.id, user])
 
   const loadPost = async (postId: number) => {
     try {
@@ -49,7 +50,7 @@ export default function PostDetailPage() {
       toast.error('포스트를 불러오는데 실패했습니다')
       router.push('/posts')
     } finally {
-      setIsLoading(false)
+      setPostLoading(false)
     }
   }
 
@@ -105,7 +106,7 @@ export default function PostDetailPage() {
     }
   }
 
-  if (isLoading) return <LoadingSpinner />
+  if (userLoading || postLoading) return <LoadingSpinner />
 
   if (!post) {
     return (

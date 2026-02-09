@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Edit, X, Github, Mail, Bell, BellOff, ExternalLink } from 'lucide-react'
+import { Edit, X, Github, Mail, Bell, BellOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { authAPI, settingsAPI } from '@/lib/api'
 import Header from '@/components/Header'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { useUser } from '@/contexts/UserContext'
 
 export default function SettingsPage() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const { user, isLoading: userLoading, refreshUser } = useUser()
+  const [settingsLoading, setSettingsLoading] = useState(true)
 
   // Velog
   const [velogUsername, setVelogUsername] = useState('')
@@ -25,25 +26,26 @@ export default function SettingsPage() {
   const [emailNotificationEnabled, setEmailNotificationEnabled] = useState(false)
 
   useEffect(() => {
-    loadData()
-  }, [])
+    if (!userLoading && !user) {
+      router.push('/')
+      return
+    }
+    if (user) {
+      setVelogUsername(user.velog_username || '')
+      loadSettings()
+    }
+  }, [user, userLoading])
 
-  const loadData = async () => {
+  const loadSettings = async () => {
     try {
-      const [userRes, settingsRes] = await Promise.all([
-        authAPI.getCurrentUser(),
-        settingsAPI.get()
-      ])
-      setUser(userRes.data)
-      setVelogUsername(userRes.data.velog_username || '')
+      const settingsRes = await settingsAPI.get()
       setGithubRepo(settingsRes.data.github_repo || '')
       setGithubSyncEnabled(settingsRes.data.github_sync_enabled || false)
       setEmailNotificationEnabled(settingsRes.data.email_notification_enabled || false)
     } catch (error) {
       toast.error('설정을 불러오는데 실패했습니다')
-      router.push('/')
     } finally {
-      setIsLoading(false)
+      setSettingsLoading(false)
     }
   }
 
@@ -52,7 +54,7 @@ export default function SettingsPage() {
       const response = await authAPI.verifyVelog(velogUsername)
       toast.success(response.data.message)
       setIsEditingVelog(false)
-      loadData()
+      await refreshUser()
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Velog 계정을 찾을 수 없습니다')
     }
@@ -88,7 +90,7 @@ export default function SettingsPage() {
     }
   }
 
-  if (isLoading) return <LoadingSpinner />
+  if (userLoading || settingsLoading) return <LoadingSpinner />
 
   return (
     <div className="min-h-screen bg-gray-50">

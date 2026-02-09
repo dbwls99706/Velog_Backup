@@ -5,25 +5,30 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Database, FileText, Calendar, Play, FolderOpen, Download, Loader2, Settings, X, Github } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { authAPI, backupAPI, settingsAPI } from '@/lib/api'
+import { backupAPI, settingsAPI } from '@/lib/api'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import Header from '@/components/Header'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { useUser } from '@/contexts/UserContext'
 
 export default function DashboardPage() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const { user, isLoading: userLoading, refreshUser } = useUser()
   const [stats, setStats] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [statsLoading, setStatsLoading] = useState(true)
   const [isBackingUp, setIsBackingUp] = useState(false)
   const [showSetupModal, setShowSetupModal] = useState(false)
   const [setupRepo, setSetupRepo] = useState('')
   const [setupSaving, setSetupSaving] = useState(false)
 
   useEffect(() => {
-    loadData()
-  }, [])
+    if (!userLoading && !user) {
+      router.push('/')
+      return
+    }
+    if (user) loadStats()
+  }, [user, userLoading])
 
   // 첫 로그인 감지: GitHub repo 미설정 시 팝업
   useEffect(() => {
@@ -47,8 +52,7 @@ export default function DashboardPage() {
       })
       toast.success('GitHub 동기화가 활성화되었습니다!')
       setShowSetupModal(false)
-      // user 상태 업데이트
-      setUser((prev: any) => ({ ...prev, github_repo: setupRepo.trim() }))
+      await refreshUser()
     } catch {
       toast.error('설정 저장에 실패했습니다')
     } finally {
@@ -69,25 +73,20 @@ export default function DashboardPage() {
     if (!hasInProgressBackup) return
 
     const interval = setInterval(() => {
-      loadData()
+      loadStats()
     }, 3000)
 
     return () => clearInterval(interval)
   }, [stats])
 
-  const loadData = async () => {
+  const loadStats = async () => {
     try {
-      const [userRes, statsRes] = await Promise.all([
-        authAPI.getCurrentUser(),
-        backupAPI.getStats()
-      ])
-      setUser(userRes.data)
+      const statsRes = await backupAPI.getStats()
       setStats(statsRes.data)
     } catch (error) {
       toast.error('데이터를 불러오는데 실패했습니다')
-      router.push('/')
     } finally {
-      setIsLoading(false)
+      setStatsLoading(false)
     }
   }
 
@@ -96,7 +95,7 @@ export default function DashboardPage() {
     try {
       await backupAPI.trigger(false)
       toast.success('백업이 시작되었습니다!')
-      setTimeout(loadData, 2000)
+      setTimeout(loadStats, 2000)
     } catch (error: any) {
       toast.error(error.response?.data?.detail || '백업 시작에 실패했습니다')
     } finally {
@@ -137,7 +136,7 @@ export default function DashboardPage() {
     }
   }
 
-  if (isLoading) return <LoadingSpinner />
+  if (userLoading || statsLoading) return <LoadingSpinner />
 
   return (
     <div className="min-h-screen bg-gray-50">
