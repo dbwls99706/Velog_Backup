@@ -9,7 +9,6 @@ import { postsAPI } from '@/lib/api'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import Header from '@/components/Header'
-import LoadingSpinner from '@/components/LoadingSpinner'
 import { useUser } from '@/contexts/UserContext'
 
 interface Post {
@@ -95,14 +94,12 @@ export default function PostsPage() {
 
   const totalPages = Math.ceil(total / limit)
 
-  if (userLoading) return <LoadingSpinner />
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header user={user} />
 
       <main className="container mx-auto px-4 py-8 max-w-5xl">
-        {postsLoading ? (
+        {(userLoading || postsLoading) ? (
           <div className="flex justify-center py-16">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
