@@ -58,7 +58,7 @@ export default function Header({ user }: HeaderProps) {
             </nav>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 min-h-[36px]">
             {user && (
               <>
                 <span className="hidden sm:inline text-sm text-gray-600 dark:text-gray-400">{user.email}</span>
