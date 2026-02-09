@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { BookOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { authAPI } from '@/lib/api'
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const hasRun = useRef(false)
@@ -64,5 +64,18 @@ export default function AuthCallbackPage() {
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
       <p className="text-gray-600">GitHub 로그인 처리 중...</p>
     </div>
+  )
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
+        <p className="text-gray-600">로딩 중...</p>
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   )
 }
