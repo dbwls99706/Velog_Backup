@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: 'Velog Backup - 블로그 자동 백업',
   description: 'Velog 포스트를 서버에 무료로 백업하세요',
   verification: {
-    google: 'M6Qy42LQloJEnVHEY82cNKuYyPFjFkHsOhz5Gc5OAcY',
+    google: 'cFzhCeWAb9G5Bvp5_syeNURX1ORYWpnP2qK9frvv0jo',
   },
 }
 
