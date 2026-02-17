@@ -18,6 +18,7 @@ class User(Base):
     github_access_token = Column(Text, nullable=True)
     github_repo = Column(String, nullable=True)
     github_sync_enabled = Column(Boolean, default=False)
+    github_installation_id = Column(Integer, nullable=True)  # GitHub App installation
 
     # Notification
     email_notification_enabled = Column(Boolean, default=True)

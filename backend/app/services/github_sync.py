@@ -11,7 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 class GitHubSyncService:
-    """GitHub Repository 동기화 서비스 (Git Tree API - 단일 커밋)"""
+    """GitHub Repository 동기화 서비스 (Git Tree API - 단일 커밋)
+
+    access_token: GitHub user token 또는 installation token
+    """
 
     API_BASE = "https://api.github.com"
 
@@ -23,15 +26,22 @@ class GitHubSyncService:
             "X-GitHub-Api-Version": "2022-11-28",
         }
 
+    @classmethod
+    async def from_installation(cls, installation_id: int) -> "GitHubSyncService":
+        """GitHub App installation token으로 서비스 생성."""
+        from app.services.github_app import GitHubAppService
+        token = await GitHubAppService.get_installation_token(installation_id)
+        return cls(token)
+
     async def _get_authenticated_user(self) -> str:
-        """인증된 GitHub 사용자명 반환"""
+        """인증된 GitHub 사용자명 반환 (user token 전용)"""
         async with httpx.AsyncClient() as client:
             resp = await client.get(f"{self.API_BASE}/user", headers=self.headers)
             resp.raise_for_status()
             return resp.json()["login"]
 
     async def _ensure_repo_exists(self, repo_name: str, owner: str) -> bool:
-        """Repository가 존재하는지 확인하고, 없으면 생성"""
+        """Repository가 존재하는지 확인하고, 없으면 생성 (user token 전용)"""
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 f"{self.API_BASE}/repos/{owner}/{repo_name}",
@@ -52,6 +62,15 @@ class GitHubSyncService:
             )
             resp.raise_for_status()
             return True
+
+    async def _verify_repo_accessible(self, owner: str, repo_name: str) -> bool:
+        """Repository 접근 가능 여부 확인 (installation token용)"""
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{self.API_BASE}/repos/{owner}/{repo_name}",
+                headers=self.headers
+            )
+            return resp.status_code == 200
 
     async def _get_default_branch_sha(self, owner: str, repo: str) -> Optional[str]:
         """기본 브랜치의 최신 커밋 SHA 조회"""
@@ -126,10 +145,25 @@ class GitHubSyncService:
         )
         resp.raise_for_status()
 
-    async def sync_posts(self, repo_name: str, posts: List, velog_username: str, changed_slugs: set = None) -> str:
-        """포스트를 GitHub Repository에 단일 커밋으로 동기화. changed_slugs가 주어지면 해당 포스트만 blob 생성."""
-        owner = await self._get_authenticated_user()
-        await self._ensure_repo_exists(repo_name, owner)
+    async def sync_posts(
+        self,
+        repo_name: str,
+        posts: List,
+        velog_username: str,
+        changed_slugs: set = None,
+        owner: str = None,
+    ) -> str:
+        """포스트를 GitHub Repository에 단일 커밋으로 동기화.
+
+        owner: GitHub 사용자명. 미지정 시 /user API로 조회 (user token 전용).
+        changed_slugs: 주어지면 해당 포스트만 blob 생성.
+        """
+        if not owner:
+            owner = await self._get_authenticated_user()
+
+        # installation token이면 접근 확인만, user token이면 없을 때 자동 생성
+        if not await self._verify_repo_accessible(owner, repo_name):
+            await self._ensure_repo_exists(repo_name, owner)
 
         # 최신 커밋 SHA 조회
         base_sha = await self._get_default_branch_sha(owner, repo_name)

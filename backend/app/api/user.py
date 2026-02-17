@@ -8,11 +8,13 @@ import logging
 import httpx
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.core.security import get_current_active_user
 from app.models.user import User
 from app.models.post import PostCache
 from app.models.backup import BackupLog
 from app.services.velog import VelogService
+from app.services.github_app import GitHubAppService
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,7 @@ class VelogUsernameRequest(BaseModel):
 class UserSettingsResponse(BaseModel):
     github_repo: Optional[str]
     github_sync_enabled: bool
+    github_installed: bool = False
     email_notification_enabled: bool
 
     class Config:
@@ -97,6 +100,7 @@ async def get_user_settings(current_user: User = Depends(get_current_active_user
     return {
         "github_repo": current_user.github_repo,
         "github_sync_enabled": current_user.github_sync_enabled or False,
+        "github_installed": bool(current_user.github_installation_id),
         "email_notification_enabled": current_user.email_notification_enabled or False,
     }
 
@@ -123,6 +127,7 @@ async def update_user_settings(
     return {
         "github_repo": current_user.github_repo,
         "github_sync_enabled": current_user.github_sync_enabled or False,
+        "github_installed": bool(current_user.github_installation_id),
         "email_notification_enabled": current_user.email_notification_enabled or False,
     }
 
@@ -210,3 +215,67 @@ async def verify_velog(
 
     message = "Velog 계정이 수정되었습니다" if is_update else "Velog 계정이 연동되었습니다"
     return {"message": message, "username": username}
+
+
+# ── GitHub App 엔드포인트 ──
+
+
+@router.get("/github/app/install-url")
+async def get_github_app_install_url(current_user: User = Depends(get_current_active_user)):
+    """GitHub App 설치 URL 반환"""
+    if not GitHubAppService.is_configured():
+        raise HTTPException(status_code=501, detail="GitHub App이 설정되지 않았습니다")
+    url = f"https://github.com/apps/{settings.GITHUB_APP_NAME}/installations/new"
+    return {"install_url": url}
+
+
+@router.post("/github/app/connect")
+async def connect_github_app(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """사용자의 GitHub App 설치를 자동 감지하여 연결"""
+    if not GitHubAppService.is_configured():
+        raise HTTPException(status_code=501, detail="GitHub App이 설정되지 않았습니다")
+    if not current_user.github_access_token:
+        raise HTTPException(status_code=400, detail="GitHub 로그인이 필요합니다")
+
+    installation_id = await GitHubAppService.get_user_installation(
+        current_user.github_access_token
+    )
+    if not installation_id:
+        raise HTTPException(
+            status_code=404,
+            detail="GitHub App 설치를 찾을 수 없습니다. 먼저 App을 설치해주세요.",
+        )
+
+    current_user.github_installation_id = installation_id
+    db.commit()
+    return {"installation_id": installation_id}
+
+
+@router.get("/github/app/repos")
+async def list_github_app_repos(current_user: User = Depends(get_current_active_user)):
+    """GitHub App이 접근 가능한 레포지토리 목록"""
+    if not current_user.github_installation_id:
+        raise HTTPException(status_code=400, detail="GitHub App이 연결되지 않았습니다")
+    try:
+        repos = await GitHubAppService.list_installation_repos(
+            current_user.github_installation_id
+        )
+        return {"repos": repos}
+    except Exception as e:
+        logger.warning(f"Failed to list repos: {e}")
+        raise HTTPException(status_code=502, detail="레포지토리 목록을 가져올 수 없습니다")
+
+
+@router.delete("/github/app/disconnect")
+async def disconnect_github_app(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """GitHub App 연결 해제"""
+    current_user.github_installation_id = None
+    current_user.github_sync_enabled = False
+    db.commit()
+    return {"message": "GitHub App 연결이 해제되었습니다"}

@@ -186,12 +186,19 @@ async def perform_backup_task(user_id: int, force: bool, db: Session):
         db.commit()
 
         # GitHub 동기화 (활성화된 경우, 변경분이 있을 때만)
-        if user.github_sync_enabled and user.github_repo and user.github_access_token and changed_slugs:
+        has_github_token = user.github_installation_id or user.github_access_token
+        if user.github_sync_enabled and user.github_repo and has_github_token and changed_slugs:
             try:
                 from app.services.github_sync import GitHubSyncService
-                github_sync = GitHubSyncService(user.github_access_token)
+                if user.github_installation_id:
+                    github_sync = await GitHubSyncService.from_installation(user.github_installation_id)
+                else:
+                    github_sync = GitHubSyncService(user.github_access_token)
                 all_posts = db.query(PostCache).filter(PostCache.user_id == user_id).all()
-                gh_owner = await github_sync.sync_posts(user.github_repo, all_posts, user.velog_username, changed_slugs)
+                gh_owner = await github_sync.sync_posts(
+                    user.github_repo, all_posts, user.velog_username,
+                    changed_slugs=changed_slugs, owner=user.name,
+                )
                 github_repo_url = f"https://github.com/{gh_owner}/{user.github_repo}"
                 backup_log.message += " | GitHub 동기화 완료"
                 db.commit()

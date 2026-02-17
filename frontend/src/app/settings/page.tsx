@@ -2,12 +2,19 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Edit, X, Github, Mail, Bell, BellOff, AlertTriangle, Sun, Moon } from 'lucide-react'
+import { Edit, X, Github, Mail, Bell, BellOff, AlertTriangle, Sun, Moon, CheckCircle, ExternalLink, Unlink } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { authAPI, settingsAPI } from '@/lib/api'
+import { authAPI, settingsAPI, githubAppAPI } from '@/lib/api'
 import Header from '@/components/Header'
 import { useUser } from '@/contexts/UserContext'
 import { useTheme } from '@/contexts/ThemeContext'
+
+interface GitHubRepo {
+  name: string
+  full_name: string
+  private: boolean
+  description: string
+}
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -22,9 +29,15 @@ export default function SettingsPage() {
   // GitHub Sync
   const [githubRepo, setGithubRepo] = useState('')
   const [githubSyncEnabled, setGithubSyncEnabled] = useState(false)
+  const [githubInstalled, setGithubInstalled] = useState(false)
   const [savedGithubRepo, setSavedGithubRepo] = useState('')
   const [repoWarning, setRepoWarning] = useState<{ exists: boolean; description?: string } | null>(null)
   const [savingGithub, setSavingGithub] = useState(false)
+
+  // GitHub App
+  const [appRepos, setAppRepos] = useState<GitHubRepo[]>([])
+  const [loadingRepos, setLoadingRepos] = useState(false)
+  const [connecting, setConnecting] = useState(false)
 
   // Email Notification
   const [emailNotificationEnabled, setEmailNotificationEnabled] = useState(false)
@@ -36,11 +49,24 @@ export default function SettingsPage() {
       setGithubRepo(repo)
       setSavedGithubRepo(repo)
       setGithubSyncEnabled(settingsRes.data.github_sync_enabled || false)
+      setGithubInstalled(settingsRes.data.github_installed || false)
       setEmailNotificationEnabled(settingsRes.data.email_notification_enabled || false)
     } catch (error) {
       toast.error('설정을 불러오는데 실패했습니다')
     } finally {
       setSettingsLoading(false)
+    }
+  }, [])
+
+  const loadAppRepos = useCallback(async () => {
+    setLoadingRepos(true)
+    try {
+      const res = await githubAppAPI.listRepos()
+      setAppRepos(res.data.repos || [])
+    } catch {
+      // GitHub App 미설정 시 무시
+    } finally {
+      setLoadingRepos(false)
     }
   }, [])
 
@@ -54,6 +80,13 @@ export default function SettingsPage() {
       loadSettings()
     }
   }, [user, userLoading, router, loadSettings])
+
+  // GitHub App 연결 상태면 레포 목록 로드
+  useEffect(() => {
+    if (githubInstalled) {
+      loadAppRepos()
+    }
+  }, [githubInstalled, loadAppRepos])
 
   const handleVerifyVelog = async () => {
     try {
@@ -71,6 +104,44 @@ export default function SettingsPage() {
   const handleCancelEditVelog = () => {
     setVelogUsername(user?.velog_username || '')
     setIsEditingVelog(false)
+  }
+
+  // GitHub App 설치 페이지로 이동
+  const handleInstallApp = async () => {
+    try {
+      const res = await githubAppAPI.getInstallUrl()
+      window.open(res.data.install_url, '_blank')
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'GitHub App URL을 가져올 수 없습니다')
+    }
+  }
+
+  // GitHub App 연결 감지
+  const handleConnectApp = async () => {
+    setConnecting(true)
+    try {
+      await githubAppAPI.connect()
+      setGithubInstalled(true)
+      toast.success('GitHub App이 연결되었습니다')
+      await loadAppRepos()
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'GitHub App 연결에 실패했습니다')
+    } finally {
+      setConnecting(false)
+    }
+  }
+
+  // GitHub App 연결 해제
+  const handleDisconnectApp = async () => {
+    try {
+      await githubAppAPI.disconnect()
+      setGithubInstalled(false)
+      setAppRepos([])
+      setGithubSyncEnabled(false)
+      toast.success('GitHub App 연결이 해제되었습니다')
+    } catch (error: any) {
+      toast.error('연결 해제에 실패했습니다')
+    }
   }
 
   const saveGithubSettings = async () => {
@@ -91,6 +162,12 @@ export default function SettingsPage() {
   }
 
   const handleSaveGithubSync = async () => {
+    // GitHub App 모드에서는 레포 존재 확인 불필요 (목록에서 선택하므로)
+    if (githubInstalled) {
+      await saveGithubSettings()
+      return
+    }
+
     const repoChanged = githubRepo.trim() && githubRepo.trim() !== savedGithubRepo
     if (!repoChanged) {
       await saveGithubSettings()
@@ -201,23 +278,96 @@ export default function SettingsPage() {
             각 글은 제목별 폴더로 정리되며, 이미지도 함께 저장됩니다.
           </p>
 
+          {/* GitHub App 연결 상태 */}
+          <div className="mb-4 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+            {githubInstalled ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle size={16} className="text-green-500" />
+                  <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                    GitHub App 연결됨
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    (선택한 Repository만 접근)
+                  </span>
+                </div>
+                <button
+                  onClick={handleDisconnectApp}
+                  className="text-xs text-red-500 hover:text-red-700 flex items-center space-x-1"
+                >
+                  <Unlink size={12} />
+                  <span>연결 해제</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  GitHub App을 설치하면 선택한 Repository에만 접근 권한을 부여합니다.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleInstallApp}
+                    className="btn btn-primary text-sm flex items-center space-x-1"
+                  >
+                    <ExternalLink size={14} />
+                    <span>GitHub App 설치</span>
+                  </button>
+                  <button
+                    onClick={handleConnectApp}
+                    disabled={connecting}
+                    className="btn btn-secondary text-sm"
+                  >
+                    {connecting ? '확인 중...' : '설치 완료 후 연결'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Repository 이름
+                Repository {githubInstalled ? '선택' : '이름'}
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  className="input flex-1"
-                  placeholder="예: my-velog-backup"
+              {githubInstalled && appRepos.length > 0 ? (
+                <select
+                  className="input w-full"
                   value={githubRepo}
                   onChange={(e) => setGithubRepo(e.target.value)}
-                />
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                존재하지 않으면 자동으로 생성됩니다
-              </p>
+                >
+                  <option value="">Repository를 선택하세요</option>
+                  {appRepos.map((repo) => (
+                    <option key={repo.full_name} value={repo.name}>
+                      {repo.name} {repo.private ? '(비공개)' : '(공개)'}{repo.description ? ` - ${repo.description}` : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      className="input flex-1"
+                      placeholder="예: my-velog-backup"
+                      value={githubRepo}
+                      onChange={(e) => setGithubRepo(e.target.value)}
+                    />
+                  </div>
+                  {githubInstalled && loadingRepos ? (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      레포지토리 목록을 불러오는 중...
+                    </p>
+                  ) : githubInstalled ? (
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                      접근 가능한 레포지토리가 없습니다. GitHub App 설정에서 레포지토리를 추가해주세요.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      존재하지 않으면 자동으로 생성됩니다
+                    </p>
+                  )}
+                </>
+              )}
               {repoWarning?.exists && (
                 <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg dark:bg-yellow-900/20 dark:border-yellow-800">
                   <div className="flex items-start space-x-2">

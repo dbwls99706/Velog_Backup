@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_ID: str
     GITHUB_CLIENT_SECRET: str
 
+    # GitHub App (fine-grained repo access)
+    GITHUB_APP_ID: Optional[str] = None
+    GITHUB_APP_PRIVATE_KEY: Optional[str] = None  # PEM key (base64 encoded in env)
+    GITHUB_APP_NAME: Optional[str] = None  # App slug for install URL
+
     # Resend (Email notifications)
     RESEND_API_KEY: Optional[str] = None
 

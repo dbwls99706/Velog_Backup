@@ -58,3 +58,10 @@ export const settingsAPI = {
   }) => api.put('/user/settings', data),
   checkGitHubRepo: (name: string) => api.get(`/user/github/repo/check?name=${encodeURIComponent(name)}`),
 };
+
+export const githubAppAPI = {
+  getInstallUrl: () => api.get('/user/github/app/install-url'),
+  connect: () => api.post('/user/github/app/connect'),
+  listRepos: () => api.get('/user/github/app/repos'),
+  disconnect: () => api.delete('/user/github/app/disconnect'),
+};
