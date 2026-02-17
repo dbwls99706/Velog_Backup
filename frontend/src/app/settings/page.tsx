@@ -312,7 +312,7 @@ export default function SettingsPage() {
                   <ol className="list-decimal list-inside space-y-0.5 mt-2">
                     <li>GitHub에서 백업용 Repository를 먼저 생성하세요</li>
                     <li>아래 버튼으로 App을 설치하고, 해당 Repository를 선택하세요</li>
-                    <li>"설치 완료 후 연결"을 눌러 연동을 완료하세요</li>
+                    <li>&ldquo;설치 완료 후 연결&rdquo;을 눌러 연동을 완료하세요</li>
                   </ol>
                   <div className="flex gap-2 mt-2">
                     <button
