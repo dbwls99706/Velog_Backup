@@ -341,18 +341,29 @@ export default function SettingsPage() {
                 Repository {githubInstalled ? '선택' : '이름'}
               </label>
               {githubInstalled && appRepos.length > 0 ? (
-                <select
-                  className="input w-full"
-                  value={githubRepo}
-                  onChange={(e) => setGithubRepo(e.target.value)}
-                >
-                  <option value="">Repository를 선택하세요</option>
-                  {appRepos.map((repo) => (
-                    <option key={repo.full_name} value={repo.name}>
-                      {repo.name} {repo.private ? '(비공개)' : '(공개)'}{repo.description ? ` - ${repo.description}` : ''}
-                    </option>
-                  ))}
-                </select>
+                <>
+                  <select
+                    className="input w-full"
+                    value={githubRepo}
+                    onChange={(e) => setGithubRepo(e.target.value)}
+                  >
+                    <option value="">Repository를 선택하세요</option>
+                    {appRepos.map((repo) => (
+                      <option key={repo.full_name} value={repo.name}>
+                        {repo.name} {repo.private ? '(비공개)' : '(공개)'}{repo.description ? ` - ${repo.description}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {savedGithubRepo && !appRepos.some((r) => r.name === savedGithubRepo) && (
+                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg dark:bg-yellow-900/20 dark:border-yellow-800 flex items-start space-x-2">
+                      <AlertTriangle size={14} className="text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-yellow-700 dark:text-yellow-400">
+                        현재 저장된 Repository <strong>{savedGithubRepo}</strong>에 GitHub App 접근 권한이 없습니다.
+                        목록에서 다른 Repository를 선택하거나, GitHub App 설정에서 해당 Repository를 추가해주세요.
+                      </p>
+                    </div>
+                  )}
+                </>
               ) : (
                 <>
                   <div className="flex gap-2">
