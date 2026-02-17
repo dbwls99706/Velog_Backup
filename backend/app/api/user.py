@@ -237,11 +237,11 @@ async def connect_github_app(
     """사용자의 GitHub App 설치를 자동 감지하여 연결"""
     if not GitHubAppService.is_configured():
         raise HTTPException(status_code=501, detail="GitHub App이 설정되지 않았습니다")
-    if not current_user.github_access_token:
+    if not current_user.github_id:
         raise HTTPException(status_code=400, detail="GitHub 로그인이 필요합니다")
 
     installation_id = await GitHubAppService.get_user_installation(
-        current_user.github_access_token
+        current_user.github_id
     )
     if not installation_id:
         raise HTTPException(
