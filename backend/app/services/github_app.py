@@ -85,6 +85,7 @@ class GitHubAppService:
     async def get_user_installation(github_access_token: str) -> int | None:
         """사용자의 GitHub App 설치 ID를 조회한다."""
         if not settings.GITHUB_APP_NAME:
+            logger.warning("GITHUB_APP_NAME is not set")
             return None
         async with httpx.AsyncClient() as client:
             resp = await client.get(
@@ -96,10 +97,22 @@ class GitHubAppService:
                 timeout=10.0,
             )
             if resp.status_code != 200:
+                logger.warning(
+                    "GitHub /user/installations returned %d: %s",
+                    resp.status_code,
+                    resp.text[:500],
+                )
                 return None
             data = resp.json()
             app_id = str(settings.GITHUB_APP_ID)
-            for inst in data.get("installations", []):
+            installations = data.get("installations", [])
+            logger.info(
+                "Found %d installations, looking for app_id=%s, found ids=%s",
+                len(installations),
+                app_id,
+                [str(inst.get("app_id")) for inst in installations],
+            )
+            for inst in installations:
                 if str(inst["app_id"]) == app_id:
                     return inst["id"]
         return None
