@@ -139,7 +139,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header user={user} />
 
-      {/* GitHub Repo 설정 팝업 */}
+      {/* GitHub 동기화 설정 팝업 */}
       {showSetupModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full p-6 relative">
@@ -159,7 +159,7 @@ export default function DashboardPage() {
 
             <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
               백업된 포스트를 GitHub Repository에 자동으로 커밋합니다.
-              Repository가 없으면 자동 생성됩니다.
+              GitHub에서 백업용 Repository를 <strong>미리 생성</strong>한 뒤, 아래에 이름을 입력해주세요.
             </p>
 
             <div className="mb-4">
@@ -178,10 +178,14 @@ export default function DashboardPage() {
               </p>
             </div>
 
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
+              설정 페이지에서 GitHub App을 연결하면 선택한 Repository에만 접근하도록 권한을 제한할 수 있습니다.
+            </p>
+
             <div className="flex space-x-3">
               <button
                 onClick={handleSetupSave}
-                disabled={setupSaving}
+                disabled={setupSaving || !setupRepo.trim()}
                 className="btn btn-primary flex-1"
               >
                 {setupSaving ? '저장 중...' : '활성화'}
