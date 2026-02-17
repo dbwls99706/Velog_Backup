@@ -303,28 +303,34 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   GitHub App을 설치하면 선택한 Repository에만 접근 권한을 부여합니다.
+                  설치하지 않아도 아래에서 Repository 이름을 직접 입력하여 동기화할 수 있습니다.
                 </p>
-                <ol className="text-xs text-gray-500 dark:text-gray-400 list-decimal list-inside space-y-0.5">
-                  <li>GitHub에서 백업용 Repository를 먼저 생성하세요</li>
-                  <li>아래 버튼으로 App을 설치하고, 해당 Repository를 선택하세요</li>
-                  <li>"설치 완료 후 연결"을 눌러 연동을 완료하세요</li>
-                </ol>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleInstallApp}
-                    className="btn btn-primary text-sm flex items-center space-x-1"
-                  >
-                    <ExternalLink size={14} />
-                    <span>GitHub App 설치</span>
-                  </button>
-                  <button
-                    onClick={handleConnectApp}
-                    disabled={connecting}
-                    className="btn btn-secondary text-sm"
-                  >
-                    {connecting ? '확인 중...' : '설치 완료 후 연결'}
-                  </button>
-                </div>
+                <details className="text-xs text-gray-500 dark:text-gray-400">
+                  <summary className="cursor-pointer text-primary-600 dark:text-primary-400 font-medium">
+                    GitHub App으로 보안 강화하기 (선택)
+                  </summary>
+                  <ol className="list-decimal list-inside space-y-0.5 mt-2">
+                    <li>GitHub에서 백업용 Repository를 먼저 생성하세요</li>
+                    <li>아래 버튼으로 App을 설치하고, 해당 Repository를 선택하세요</li>
+                    <li>"설치 완료 후 연결"을 눌러 연동을 완료하세요</li>
+                  </ol>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={handleInstallApp}
+                      className="btn btn-primary text-sm flex items-center space-x-1"
+                    >
+                      <ExternalLink size={14} />
+                      <span>GitHub App 설치</span>
+                    </button>
+                    <button
+                      onClick={handleConnectApp}
+                      disabled={connecting}
+                      className="btn btn-secondary text-sm"
+                    >
+                      {connecting ? '확인 중...' : '설치 완료 후 연결'}
+                    </button>
+                  </div>
+                </details>
               </div>
             )}
           </div>

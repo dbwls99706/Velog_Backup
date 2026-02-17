@@ -27,7 +27,11 @@ class TokenResponse(BaseModel):
 
 @router.get("/github/url")
 async def get_github_auth_url():
-    """GitHub OAuth 인증 URL 반환 (user:email scope만 요청, state CSRF 보호)"""
+    """GitHub OAuth 인증 URL 반환 (state CSRF 보호)
+
+    GitHub App 설치 시 → installation token으로 동기화 (repo scope 불필요)
+    GitHub App 미설치 시 → user token의 repo scope로 동기화 (레거시)
+    """
     # CSRF 방지를 위한 서명된 state 토큰 생성
     state_payload = {
         "nonce": secrets.token_urlsafe(16),
@@ -39,7 +43,7 @@ async def get_github_auth_url():
         f"https://github.com/login/oauth/authorize"
         f"?client_id={settings.GITHUB_CLIENT_ID}"
         f"&redirect_uri={settings.GITHUB_REDIRECT_URI}"
-        f"&scope=user:email"
+        f"&scope=user:email,repo"
         f"&state={state_token}"
     )
     return {"auth_url": auth_url, "state": state_token}
