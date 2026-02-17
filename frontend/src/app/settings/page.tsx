@@ -304,6 +304,11 @@ export default function SettingsPage() {
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   GitHub App을 설치하면 선택한 Repository에만 접근 권한을 부여합니다.
                 </p>
+                <ol className="text-xs text-gray-500 dark:text-gray-400 list-decimal list-inside space-y-0.5">
+                  <li>GitHub에서 백업용 Repository를 먼저 생성하세요</li>
+                  <li>아래 버튼으로 App을 설치하고, 해당 Repository를 선택하세요</li>
+                  <li>"설치 완료 후 연결"을 눌러 연동을 완료하세요</li>
+                </ol>
                 <div className="flex gap-2">
                   <button
                     onClick={handleInstallApp}
