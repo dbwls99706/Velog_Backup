@@ -159,7 +159,7 @@ export default function DashboardPage() {
 
             <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
               백업된 포스트를 GitHub Repository에 자동으로 커밋합니다.
-              GitHub에서 백업용 Repository를 <strong>미리 생성</strong>한 뒤, 아래에 이름을 입력해주세요.
+              Repository가 없으면 자동으로 생성됩니다.
             </p>
 
             <div className="mb-4">
