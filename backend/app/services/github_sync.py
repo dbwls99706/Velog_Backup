@@ -33,6 +33,36 @@ class GitHubSyncService:
         token = await GitHubAppService.get_installation_token(installation_id)
         return cls(token)
 
+    async def _get_authenticated_user(self) -> str:
+        """인증된 GitHub 사용자명 반환 (user token 전용)"""
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{self.API_BASE}/user", headers=self.headers)
+            resp.raise_for_status()
+            return resp.json()["login"]
+
+    async def _ensure_repo_exists(self, repo_name: str, owner: str) -> bool:
+        """Repository가 존재하는지 확인하고, 없으면 생성 (user token 전용)"""
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{self.API_BASE}/repos/{owner}/{repo_name}",
+                headers=self.headers
+            )
+            if resp.status_code == 200:
+                return True
+
+            resp = await client.post(
+                f"{self.API_BASE}/user/repos",
+                headers=self.headers,
+                json={
+                    "name": repo_name,
+                    "description": "Velog Backup - 자동 백업된 블로그 포스트",
+                    "private": True,
+                    "auto_init": True,
+                }
+            )
+            resp.raise_for_status()
+            return True
+
     async def _verify_repo_accessible(self, owner: str, repo_name: str) -> bool:
         """Repository 접근 가능 여부 확인 (installation token용)"""
         async with httpx.AsyncClient() as client:
@@ -125,14 +155,15 @@ class GitHubSyncService:
     ) -> str:
         """포스트를 GitHub Repository에 단일 커밋으로 동기화.
 
-        owner: GitHub 사용자명 (필수).
+        owner: GitHub 사용자명. 미지정 시 /user API로 조회 (user token 전용).
         changed_slugs: 주어지면 해당 포스트만 blob 생성.
         """
         if not owner:
-            raise ValueError("owner is required")
+            owner = await self._get_authenticated_user()
 
+        # installation token이면 접근 확인만, user token이면 없을 때 자동 생성
         if not await self._verify_repo_accessible(owner, repo_name):
-            raise RuntimeError(f"Repository {owner}/{repo_name} is not accessible")
+            await self._ensure_repo_exists(repo_name, owner)
 
         # 최신 커밋 SHA 조회
         base_sha = await self._get_default_branch_sha(owner, repo_name)

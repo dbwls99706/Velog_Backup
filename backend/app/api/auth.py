@@ -43,7 +43,7 @@ async def get_github_auth_url():
         f"https://github.com/login/oauth/authorize"
         f"?client_id={settings.GITHUB_CLIENT_ID}"
         f"&redirect_uri={settings.GITHUB_REDIRECT_URI}"
-        f"&scope=user:email"
+        f"&scope=user:email,repo"
         f"&state={state_token}"
     )
     return {"auth_url": auth_url, "state": state_token}

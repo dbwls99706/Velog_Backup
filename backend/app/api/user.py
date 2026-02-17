@@ -137,18 +137,32 @@ async def check_github_repo(
     name: str,
     current_user: User = Depends(get_current_active_user),
 ):
-    """GitHub Repository 존재 여부 확인 (App installation token 사용)"""
-    if not current_user.github_installation_id:
-        raise HTTPException(status_code=400, detail="GitHub App 연결이 필요합니다")
+    """GitHub Repository 존재 여부 확인 (App 설치 시 installation token, 미설치 시 user token)"""
+    if not current_user.github_installation_id and not current_user.github_access_token:
+        raise HTTPException(status_code=400, detail="GitHub 연동이 필요합니다")
 
     if not name.strip():
         return {"exists": False}
 
     try:
-        token = await GitHubAppService.get_installation_token(
-            current_user.github_installation_id
-        )
-        owner = current_user.name  # GitHub login
+        if current_user.github_installation_id:
+            token = await GitHubAppService.get_installation_token(
+                current_user.github_installation_id
+            )
+            owner = current_user.name
+        else:
+            token = current_user.github_access_token
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                owner_resp = await client.get(
+                    "https://api.github.com/user",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Accept": "application/vnd.github.v3+json",
+                    },
+                )
+                owner_resp.raise_for_status()
+                owner = owner_resp.json()["login"]
+
         async with httpx.AsyncClient(timeout=10.0) as client:
             repo_resp = await client.get(
                 f"https://api.github.com/repos/{owner}/{name.strip()}",
